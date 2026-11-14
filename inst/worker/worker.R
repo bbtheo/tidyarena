@@ -1,0 +1,180 @@
+# tidyarena worker: runs one task on one backend at one size.
+#
+# Started by tidyarena in a fresh R process as `Rscript worker.R spec.rds`.
+# Uses base R only, so that nothing tidyarena depends on is loaded next to
+# the packages being measured. Writes its result to `spec$out` after setup
+# and after every repetition, so a kill loses at most the repetition that
+# was running.
+
+local({
+  spec <- readRDS(commandArgs(trailingOnly = TRUE)[[1]])
+  .libPaths(spec$libpath)
+
+  linux <- file.exists("/proc/self/status")
+
+  status_bytes <- function(field) {
+    if (!linux) {
+      return(NA_real_)
+    }
+    line <- grep(paste0("^", field, ":"), readLines("/proc/self/status"), value = TRUE)
+    as.numeric(sub("^[^0-9]*([0-9]+).*$", "\\1", line)) * 1024
+  }
+
+  # Writing 5 to clear_refs resets the peak RSS (VmHWM) to the current RSS.
+  reset_peak <- function() {
+    linux && isTRUE(tryCatch(
+      {
+        writeLines("5", "/proc/self/clear_refs")
+        TRUE
+      },
+      error = function(e) FALSE
+    ))
+  }
+
+  result <- list(
+    status = "setup",
+    setup_seconds = NA_real_,
+    reps = list(),
+    conditions = character(),
+    error = NA_character_,
+    fingerprint = NULL,
+    versions = NULL,
+    peak_method = if (linux) "vmhwm" else "poll"
+  )
+  save_result <- function() {
+    tmp <- paste0(spec$out, ".tmp")
+    saveRDS(result, tmp)
+    file.rename(tmp, spec$out)
+  }
+
+  conditions <- character()
+  capture <- function(expr) {
+    withCallingHandlers(
+      expr,
+      message = function(m) {
+        conditions <<- c(conditions, paste("message:", conditionMessage(m)))
+        invokeRestart("muffleMessage")
+      },
+      warning = function(w) {
+        conditions <<- c(conditions, paste("warning:", conditionMessage(w)))
+        invokeRestart("muffleWarning")
+      }
+    )
+  }
+
+  versions <- function() {
+    namespaces <- loadedNamespaces()
+    vapply(
+      namespaces,
+      function(p) as.character(utils::packageVersion(p)),
+      character(1)
+    )
+  }
+
+  fail <- function(status, e) {
+    result$status <<- status
+    result$error <<- conditionMessage(e)
+    result$conditions <<- conditions
+    result$versions <<- versions()
+    save_result()
+    quit(save = "no", status = 0)
+  }
+
+  env <- new.env(parent = globalenv())
+  env$df <- readRDS(spec$data$df)
+  env$lookup <- readRDS(spec$data$lookup)
+  env$.budget_mb <- spec$budget_mb
+
+  t0 <- Sys.time()
+  tryCatch(
+    capture(eval(parse(text = spec$setup), envir = env)),
+    error = function(e) fail("setup_error", e)
+  )
+  result$setup_seconds <- as.double(Sys.time() - t0, units = "secs")
+  save_result()
+
+  task <- parse(text = spec$code)
+
+  fingerprint <- function(x) {
+    x <- as.data.frame(x)
+    cols <- lapply(x, function(v) {
+      type <- class(v)[[1]]
+      if (is.factor(v)) v <- as.character(v)
+      if (inherits(v, "integer64")) v <- as.numeric(as.character(v))
+      if (inherits(v, c("Date", "POSIXt", "difftime"))) v <- as.numeric(v)
+      if (is.logical(v)) v <- as.integer(v)
+      na <- sum(is.na(v))
+      w <- v[!is.na(v)]
+      if (is.numeric(v)) {
+        list(
+          kind = "numeric",
+          type = type,
+          na = na,
+          sum = sum(as.double(w)),
+          sumsq = sum(as.double(w)^2),
+          min = if (length(w)) min(w) else NA_real_,
+          max = if (length(w)) max(w) else NA_real_
+        )
+      } else if (is.character(v)) {
+        u <- sort(unique(w), method = "radix")
+        list(
+          kind = "character",
+          type = type,
+          na = na,
+          n_distinct = length(u),
+          nchar = sum(as.double(nchar(w))),
+          hash = hash_lines(u)
+        )
+      } else {
+        list(kind = "other", type = type, na = na)
+      }
+    })
+    out <- list(nrow = nrow(x), names = names(x), cols = cols)
+    if (!is.na(spec$order_key) && spec$order_key %in% names(x)) {
+      out$order_hash <- hash_lines(as.character(x[[spec$order_key]]))
+    }
+    out
+  }
+
+  hash_lines <- function(x) {
+    path <- tempfile()
+    on.exit(unlink(path))
+    writeLines(x, path, useBytes = TRUE)
+    unname(tools::md5sum(path))
+  }
+
+  result$status <- "running"
+  for (rep in seq_len(spec$reps + 1L) - 1L) {
+    gc(full = TRUE)
+    base_rss <- status_bytes("VmRSS")
+    peak_reset <- reset_peak()
+    t0 <- Sys.time()
+    out <- tryCatch(
+      capture(env$.collect(eval(task, envir = env))),
+      error = function(e) fail("error", e)
+    )
+    seconds <- as.double(Sys.time() - t0, units = "secs")
+    peak_rss <- if (peak_reset) status_bytes("VmHWM") else NA_real_
+    result$reps[[rep + 1L]] <- list(
+      rep = rep,
+      warmup = rep == 0L,
+      seconds = seconds,
+      base_rss = base_rss,
+      peak_rss = peak_rss
+    )
+    if (rep == spec$reps) {
+      result$fingerprint <- fingerprint(out)
+    }
+    rm(out)
+    result$conditions <- conditions
+    save_result()
+  }
+
+  if (!is.null(spec$teardown)) {
+    try(eval(parse(text = spec$teardown), envir = env), silent = TRUE)
+  }
+
+  result$versions <- versions()
+  result$status <- "ok"
+  save_result()
+})

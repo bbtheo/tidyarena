@@ -1,0 +1,89 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# tidyarena
+
+<!-- badges: start -->
+
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+<!-- badges: end -->
+
+tidyarena benchmarks dplyr backends against each other with the same
+dplyr code. Every task is one pipeline, written once and run unchanged
+on dplyr, dtplyr, duckplyr, dbplyr with duckdb, arrow, tidypolars and
+cuplyr. For each task it records:
+
+- whether the backend ran it, failed, or fell back to dplyr,
+- whether the result matches dplyr’s,
+- how long it took, including collecting the result into R,
+- how much memory it used at its peak.
+
+It also records the machine and its settings (OS, CPU, memory, GPU,
+disk, BLAS, thread limits, power settings), so results from many
+machines can be compared.
+
+## Installation
+
+You can install the development version of tidyarena from GitHub with:
+
+``` r
+# install.packages("pak")
+pak::pak("bbtheo/tidyarena")
+```
+
+Install the backends you want to compare as well. Backends that are not
+installed are skipped.
+
+## Usage
+
+See what a run would do, then run it:
+
+``` r
+library(tidyarena)
+
+arena_plan("quick")
+run <- arena_run("quick")
+arena_report(run)
+```
+
+The quick tier runs 15 tasks at 1e6 and 1e7 rows, with one warm-up and
+three timed repetitions per task. `"standard"` adds 1e8 rows and
+`"full"` adds 1e9.
+
+`arena_report()` shows the fastest backend for every task, and for every
+backend its coverage and its time and memory relative to dplyr.
+`arena_read()` gives the raw measurements.
+
+## Safe to run
+
+Each task runs in its own R process with a memory budget, by default 70%
+of available memory with at least 2 GB left free:
+
+- On Linux with systemd, the budget is a cgroup limit with swap
+  disabled. A task that overruns it is killed by the kernel before the
+  machine starts swapping.
+- On every platform, a watchdog kills a task that goes over budget,
+  leaves less than 1 GB free, makes swap grow, or runs too long.
+- Sizes that are not expected to fit are skipped before they start, and
+  a task that fails at one size is not retried at larger sizes.
+
+Results are written after every task. If a run is interrupted, call
+`arena_run(dir = <the run directory>)` to continue it.
+
+## What is measured, and how
+
+- **Data** is generated from a fixed seed, so every machine runs on
+  identical tables (see `?arena_data`). It is loaded into each backend’s
+  own format before timing starts.
+- **Time** is the wall time of the pipeline plus `collect()`.
+- **Memory** is the peak resident memory of the process. On Linux it is
+  exact (the kernel’s high-water mark, reset before every repetition);
+  elsewhere it is sampled every 0.1 seconds.
+- **Correctness** compares a fingerprint of each result with dplyr’s:
+  row count, column names, missing values, sums and ranges of numeric
+  columns (with a relative tolerance), and the distinct values of
+  character columns.
+
+Nothing that identifies you or your machine is recorded: no host name,
+user name or home directory paths.

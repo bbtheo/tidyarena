@@ -1,0 +1,44 @@
+Package: tidyarena
+Title: Benchmark Arena for 'dplyr' Backends
+Version: 0.0.0.9000
+Authors@R: 
+    person("Theo", "Blauberg", , "ma.oon.theo@gmail.com", role = c("aut", "cre"))
+Description: Runs one suite of 'dplyr' pipelines on many backends
+    ('dplyr', 'dtplyr', 'duckplyr', 'dbplyr' with 'duckdb', 'arrow',
+    'tidypolars', 'cuplyr') and records time, peak memory, coverage and
+    correctness, together with a snapshot of the machine and its settings.
+    Each task runs in its own R process under a memory budget, so a
+    benchmark run cannot exhaust the machine. Results are written in a
+    documented format meant for comparison across machines.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 8.0.0
+Depends: 
+    R (>= 4.1)
+Imports: 
+    callr,
+    cli,
+    jsonlite,
+    processx,
+    ps,
+    rlang,
+    stats,
+    tibble,
+    tools,
+    utils
+Suggests: 
+    arrow,
+    cuplyr,
+    data.table,
+    DBI,
+    dbplyr,
+    dplyr,
+    dtplyr,
+    duckdb,
+    duckplyr,
+    polars,
+    testthat (>= 3.0.0),
+    tidypolars,
+    withr
+Config/testthat/edition: 3
