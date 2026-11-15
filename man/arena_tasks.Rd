@@ -19,14 +19,18 @@ used by \code{\link[=arena_plan]{arena_plan()}} to estimate peak memory.
 \item \code{idiom}: for grouped tasks, how the grouping is written: \code{"group_by"}
 or \code{".by"}. Every grouped task exists in both forms (the \code{.by} one
 has the suffix \verb{_by}), because some backends run only one of them.
-\code{NA} for tasks without grouping.
+\code{NA} for tasks without grouping. The \code{.by} forms are written by
+tidyarena from the \code{group_by()} ones.
+\item \code{hash}: a hash of \code{code}. A task id always means the same code:
+results with different hashes are never compared.
 }
 }
 \description{
 Every task is one dplyr pipeline, written once and run unchanged on every
 backend. A pipeline sees two tables: \code{df}, the main table, and \code{lookup}, a
 small dimension table keyed by \code{g_high}. See \code{\link[=arena_data]{arena_data()}} for the
-columns.
+columns. Each task is a file in the package's \code{tasks} folder; see
+\code{vignette("extending")} to add one.
 }
 \examples{
 arena_tasks()

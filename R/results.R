@@ -52,6 +52,7 @@ summarise_cells <- function(records) {
     return(tibble::tibble(
       size = numeric(),
       task = character(),
+      task_hash = character(),
       backend = character(),
       status = character(),
       correct = logical(),
@@ -99,6 +100,7 @@ summarise_cells <- function(records) {
   tibble::tibble(
     size = field("size", numeric(1)),
     task = field("task", character(1)),
+    task_hash = field("task_hash", character(1)),
     backend = field("backend", character(1)),
     status = field("status", character(1)),
     correct = field("correct", logical(1)),
@@ -133,6 +135,7 @@ reps_table <- function(records) {
     return(tibble::tibble(
       size = numeric(),
       task = character(),
+      task_hash = character(),
       backend = character(),
       rep = integer(),
       warmup = logical(),

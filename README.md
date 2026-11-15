@@ -110,3 +110,10 @@ Results are written after every task. If a run is interrupted, call
 
 Nothing that identifies you or your machine is recorded: no host name,
 user name or home directory paths.
+
+## Adding tasks and backends
+
+Each task and each backend is a short file in `inst/tasks/` or
+`inst/backends/`. `arena_check_backend()` and `arena_check_task()` check
+a new one in seconds: they run it on a small table and compare it with
+dplyr. See `vignette("extending")`.

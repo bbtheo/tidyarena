@@ -46,3 +46,16 @@ test_that("scrub() removes the home directory and user name", {
   expect_identical(scrub(character()), character())
   expect_identical(scrub(NA_character_), NA_character_)
 })
+
+test_that("resuming refuses tasks whose code changed", {
+  res <- local_tiny_run()
+  run <- read_run_json(res$dir)
+  run$task_hashes$filter_rows <- "000000000000"
+  write_run_json(run, res$dir)
+  expect_snapshot(error = TRUE, arena_run(dir = res$dir), transform = function(x) gsub("'.*'", "<dir>", x))
+})
+
+test_that("results record the hash of the task code", {
+  res <- local_tiny_run()
+  expect_equal(res$cells$task_hash[res$cells$task == "filter_rows"], arena_tasks()$hash[[4]])
+})

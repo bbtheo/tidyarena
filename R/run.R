@@ -79,6 +79,7 @@ arena_run <- function(
   if (resuming) {
     run <- read_run_json(dir)
     check_resume(run, tier, backends, tasks, sizes)
+    check_task_hashes(run)
     prefer <- run$prefer %||% "session"
     if (!libpath_given) {
       libpath <- default_libpath(prefer)
@@ -248,6 +249,7 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
   list(
     size = cell$size,
     task = cell$task,
+    task_hash = task$hash,
     backend = cell$backend,
     status = result$status %||% "crashed",
     reason = NA_character_,
@@ -335,6 +337,7 @@ new_run <- function(dir, plan, prefer = "session", diagnostics = list()) {
     tier = settings$tier,
     sizes = sort(unique(plan$size)),
     tasks = unique(plan$task),
+    task_hashes = as.list(task_hashes(unique(plan$task))),
     backends = unique(plan$backend),
     reps = settings$reps,
     timeout = settings$timeout,
@@ -359,6 +362,32 @@ check_resume <- function(run, tier, backends, tasks, sizes, call = rlang::caller
       c(
         "Can't change {.arg {names(given)}} when resuming a run.",
         i = "Resume with the same {.arg dir} only, or start a new run."
+      ),
+      call = call
+    )
+  }
+  invisible()
+}
+
+task_hashes <- function(tasks) {
+  all <- arena_tasks()
+  stats::setNames(all$hash[match(tasks, all$task)], tasks)
+}
+
+# A run resumed with changed task code would mix results of two different
+# tasks under one id.
+check_task_hashes <- function(run, call = rlang::caller_env()) {
+  saved <- unlist(run$task_hashes)
+  if (is.null(saved)) {
+    return(invisible())
+  }
+  now <- task_hashes(names(saved))
+  changed <- names(saved)[is.na(now) | now != saved]
+  if (length(changed) > 0) {
+    cli::cli_abort(
+      c(
+        "Can't resume: the code of {length(changed)} task{?s} changed since the run started: {.val {changed}}.",
+        i = "Start a new run."
       ),
       call = call
     )

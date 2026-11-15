@@ -1,0 +1,52 @@
+# cuplyr: dplyr verbs run on an NVIDIA GPU by RAPIDS libcudf.
+list(
+  packages = c("dplyr", "cuplyr"),
+  gpu = TRUE,
+  mem_factor = 2,
+  # From cuplyr's README.
+  requires = list(
+    os = "linux",
+    arch = "x86_64",
+    r = "4.3.0",
+    gpu = "nvidia",
+    compute_capability = "7.0",
+    cuda = "12.2"
+  ),
+  setup = c(
+    "library(dplyr)",
+    "library(cuplyr)",
+    "df <- cuplyr::tbl_gpu(df)",
+    "lookup <- cuplyr::tbl_gpu(lookup)"
+  ),
+  # cuplyr is built from source against libcudf and the CUDA toolkit. Its
+  # install.sh sets those up with pixi or conda, or uses the system's. That
+  # is a long, heavy build, so tidyarena only says how.
+  install_hint = function() {
+    command <- "git clone https://github.com/bbtheo/cuplyr && cd cuplyr && ./install.sh"
+    found <- if (nzchar(Sys.which("pixi"))) {
+      "pixi"
+    } else if (nzchar(Sys.which("mamba")) || nzchar(Sys.which("conda"))) {
+      "conda"
+    } else if (nzchar(Sys.which("nvcc"))) {
+      "your CUDA toolkit"
+    }
+    c(
+      paste0(
+        "This machine meets cuplyr's GPU requirements. cuplyr is built from source with RAPIDS libcudf; in a shell, run {.code ",
+        command,
+        "}."
+      ),
+      if (is.null(found)) {
+        "It needs pixi ({.url https://pixi.sh}), conda, or a CUDA toolkit with libcudf; pixi is the simplest."
+      } else {
+        paste0("It will use ", found, ", which is installed here.")
+      }
+    )
+  },
+  # cuplyr's check of the driver, the CUDA toolkit, libcudf, its R packages
+  # and GPU access. Runs in a fresh R process, so it is self-contained.
+  diagnose = function() {
+    utils::capture.output(result <- cuplyr::check_deps())
+    result
+  }
+)

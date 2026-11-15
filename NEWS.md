@@ -51,3 +51,12 @@
   there; it never builds cuplyr itself. Before a run, cuplyr's own
   `check_deps()` runs too, its results are saved in `run.json`, and its
   failed checks explain a cuplyr that does not load.
+
+* Tasks and backends are files, one per id, in `inst/tasks/` and
+  `inst/backends/`, with defaults for optional fields and checks for
+  unknown ones. The `.by` form of each grouped task is now written from its
+  `group_by()` form. `arena_check_backend()` and `arena_check_task()` check
+  a new backend or task on a small table in seconds; `arena_check_task()`
+  also measures its memory factor. `arena_tasks()` has a `hash` of each
+  task's code, which results record and resumed runs check.
+  `vignette("extending")` explains how to add a task or a backend.

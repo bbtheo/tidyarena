@@ -8,3 +8,6 @@
 docs
 /dev-lib/
 dev-lib-install.log
+/doc/
+/Meta/
+inst/doc

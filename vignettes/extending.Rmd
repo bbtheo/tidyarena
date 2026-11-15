@@ -1,0 +1,124 @@
+---
+title: "Adding a task or a backend"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Adding a task or a backend}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+tidyarena's tasks and backends are files, one per id: `inst/tasks/<id>.R`
+and `inst/backends/<id>.R`. Each file is R code that ends with a list of
+fields. Adding one is adding a file, checking it, and opening a pull
+request.
+
+## Adding a backend
+
+A backend turns the two generated tables into its own form. Its `setup` is
+R code run in a fresh R process, with `df` and `lookup` bound to plain data
+frames and `.budget_mb` to the task's memory budget in megabytes. It must
+rebind `df` and `lookup`:
+
+```{r}
+# inst/backends/mybackend.R
+# mybackend: dplyr verbs run by MyEngine.
+list(
+  packages = c("dplyr", "mybackend"),
+  setup = c(
+    "library(dplyr)",
+    "df <- mybackend::as_my_table(df)",
+    "lookup <- mybackend::as_my_table(lookup)"
+  )
+)
+```
+
+Setup is not timed; the task and the collect back into R are. Optional
+fields:
+
+| Field | Default | Use |
+|---|---|---|
+| `.collect()` in `setup` | `dplyr::collect()` | Define it when collecting needs something else. |
+| `teardown` | none | Code run after the task, for example to close a connection. |
+| `mem_factor` | 3 | Memory the backend needs relative to the data, for the plan. |
+| `fallback_pattern` | none | A regular expression matching the message the backend gives when it hands work back to dplyr. Such cells count as fallbacks, not as wins. |
+| `gpu` | `FALSE` | Whether it runs on a GPU. |
+| `requires` | none | What it needs from the machine: `os`, `arch`, `r`, `gpu = "nvidia"`, `compute_capability`, `cuda`. Checked before anything is installed. |
+| `install_hint` | none | For packages not on CRAN: how to install them, as text or a function returning text. Backends on CRAN are installed from Posit Package Manager. |
+| `diagnose` | none | A self-contained function that checks the backend's own dependencies, run before each run. See `cuplyr.R`. |
+
+Backends that can spill to disk should set their memory limit from
+`.budget_mb`, as `duckplyr.R` does.
+
+Then check it:
+
+```{r}
+devtools::load_all()
+arena_check_backend("mybackend")
+```
+
+This runs every task on a small table, each in its own R process under a
+memory budget, and compares the results with dplyr's. A backend doesn't
+have to run every task: errors and fallbacks are results too. But every
+result it gives must be correct.
+
+## Adding a task
+
+A task is one dplyr pipeline over `df` and `lookup` (see `arena_data()` for
+their columns):
+
+```{r}
+# inst/tasks/summarise_median.R
+# Grouped median, which few engines compute without sorting.
+list(
+  family = "summarise",
+  code = 'df |> group_by(g_low) |> summarise(med = median(x), .groups = "drop")',
+  mem_factor = 0.5
+)
+```
+
+* `family` groups tasks in reports: `filter`, `mutate`, `summarise`, `join`,
+  `window`, `arrange`, `distinct`, `string`, or a new one.
+* `order_key`: if the row order is part of the answer, the column whose
+  order is checked. Otherwise results are compared without regard to order.
+* `mem_factor` (default 1): memory the task needs beyond its input,
+  relative to the input. `arena_check_task()` measures it.
+* Grouped tasks get a `.by` form, `<id>_by`, written by tidyarena:
+  `group_by(g) |> summarise(...)` becomes `summarise(..., .by = g)`. Some
+  backends run only one of the two. Set `twin = FALSE` if the pipeline has no
+  `.by` form.
+
+Then check it:
+
+```{r}
+devtools::load_all()
+arena_check_task("summarise_median")
+```
+
+It checks that the task runs on dplyr and gives the same result every time,
+measures its memory factor, and runs it on every installed backend.
+
+## Changing a task
+
+A task id always means the same code. Results record a hash of the code,
+and results with different hashes are never compared, so changing a task's
+code makes its old results incomparable. Add a task with a new id instead,
+and leave the old one until a new suite version drops it.
+
+Tasks only use the generated columns. If a workload needs data of a new
+shape, it needs a new table or a new version of the generator, not a change
+to the existing columns.
+
+## Pull requests
+
+Every change, a task, a backend or a feature, goes the same way:
+
+1. An issue says what the change is for and how it will be done.
+2. A pull request refers to the issue and has the change, its tests, its
+   documentation and a `NEWS.md` entry, and passes `R CMD check`. For a new
+   task or backend, paste the output of `arena_check_task()` or
+   `arena_check_backend()`.
+3. The pull request is squash-merged, so `main` has one commit per change.

@@ -96,32 +96,6 @@ install_hint <- function(backend) {
   if (is.function(hint)) hint() else hint
 }
 
-# cuplyr is built from source against RAPIDS libcudf and the CUDA toolkit.
-# Its install.sh sets those up with pixi or conda, or uses the system's. That
-# is a long, heavy build, so tidyarena only says how.
-cuplyr_install_hint <- function() {
-  command <- "git clone https://github.com/bbtheo/cuplyr && cd cuplyr && ./install.sh"
-  found <- if (nzchar(Sys.which("pixi"))) {
-    "pixi"
-  } else if (nzchar(Sys.which("mamba")) || nzchar(Sys.which("conda"))) {
-    "conda"
-  } else if (nzchar(Sys.which("nvcc"))) {
-    "your CUDA toolkit"
-  }
-  c(
-    paste0(
-      "This machine meets cuplyr's GPU requirements. cuplyr is built from source with RAPIDS libcudf; in a shell, run {.code ",
-      command,
-      "}."
-    ),
-    if (is.null(found)) {
-      "It needs pixi ({.url https://pixi.sh}), conda, or a CUDA toolkit with libcudf; pixi is the simplest."
-    } else {
-      paste0("It will use ", found, ", which is installed here.")
-    }
-  )
-}
-
 # The backend's own diagnostics, for backends that have them: a function run
 # in a fresh R process with `libpath`, returning a list of checks, each with
 # `ok` (`NA` when not evaluated), `name`, `value` and `message`. Run during
@@ -161,11 +135,4 @@ diagnose_backend <- function(backend, libpath, timeout = 60) {
 failed_checks <- function(diagnosis) {
   failed <- Filter(function(check) identical(check$ok, FALSE), diagnosis$checks)
   vapply(failed, function(check) paste0(check$name, ": ", check$message), character(1))
-}
-
-# cuplyr's check of the driver, the CUDA toolkit, libcudf, its R packages
-# and GPU access. Runs in a fresh R process, so it is self-contained.
-cuplyr_diagnose <- function() {
-  utils::capture.output(result <- cuplyr::check_deps())
-  result
 }
