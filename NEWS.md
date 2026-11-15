@@ -73,6 +73,8 @@
   compiled. `arena_install()` gains `only_cran` and takes its defaults from
   there.
 
-* tidypolars is installed from R-universe, with polars' prebuilt Rust
-  library, and arrow, where it has to be compiled, uses Apache's prebuilt
-  C++ library. Backends declare such sources in a new `install` field.
+* tidypolars and polars are installed from their latest GitHub releases,
+  or the latest before a dated `snapshot`, not from development versions,
+  with polars' prebuilt Rust library. arrow, where it has to be compiled,
+  uses Apache's prebuilt C++ library. Backends declare such sources in a new
+  `install` field.

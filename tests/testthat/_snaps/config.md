@@ -31,3 +31,11 @@
       Error in `arena_config()`:
       ! `only_cran` must be `TRUE` or `FALSE`, not the string "yes".
 
+# github_release() picks the newest release, by snapshot date
+
+    Code
+      github_release("owner/repo", "2026-01-01")
+    Condition
+      Error:
+      ! <https://github.com/owner/repo> has no release from before 2026-01-01.
+

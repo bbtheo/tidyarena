@@ -23,8 +23,8 @@ backends tidyarena can install, except those left out with
 \item{snapshot}{Package Manager snapshot: \code{"latest"}, or a date such as
 \code{"2026-03-01"} to install the versions that were current then. With a
 date, packages in your own library are not used: everything is installed
-into \code{lib}. R-universe has no snapshots: packages from there are always
-the latest.}
+into \code{lib}. Packages from GitHub come from the latest release published
+by that date.}
 
 \item{build}{What to do when a package has no binary: \code{"never"} to stop
 and list the packages, \code{"capped"} to compile them with the limits
@@ -63,8 +63,9 @@ versions go into tidyarena's library too; your own library is never
 changed. Because tidyarena's library comes first in \code{\link[=arena_run]{arena_run()}}, the
 newer versions are the ones benchmarked.
 
-tidypolars is not on CRAN; it is installed from R-universe, together with
-polars, unless \code{only_cran = TRUE}. Some packages download a prebuilt
+tidypolars is not on CRAN; it is installed, together with polars, from
+their latest GitHub releases (not from their development versions), unless
+\code{only_cran = TRUE}. Some packages download a prebuilt
 library when they are compiled (arrow's C++ library, polars' Rust
 library), which saves building it. cuplyr needs RAPIDS and CUDA and can't
 be installed this way; \code{arena_install()} says how.

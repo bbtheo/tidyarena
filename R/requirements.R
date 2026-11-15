@@ -93,8 +93,12 @@ install_hint <- function(backend) {
     return(sprintf("{.val %s} %s.", backend, cli_escape(paste(unmet, collapse = "; "))))
   }
   def <- backend_defs()[[backend]]
-  if (is.null(def$install_hint) && !is.null(def$install$repos)) {
-    urls <- paste0("{.url ", def$install$repos, "}", collapse = ", ")
+  if (is.null(def$install_hint) && !is.null(def$install$github %||% def$install$repos)) {
+    sources <- c(
+      if (!is.null(def$install$github)) paste0("https://github.com/", def$install$github),
+      def$install$repos
+    )
+    urls <- paste0("{.url ", sources, "}", collapse = ", ")
     return(paste0(
       "{.val ", backend, "} comes from ", urls, ", not CRAN, and only CRAN is allowed. ",
       "Allow it with {.code arena_config(only_cran = FALSE)}."

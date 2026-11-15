@@ -248,12 +248,13 @@ retry_with_arena <- function(backend) {
     dir.create(lib, recursive = TRUE, showWarnings = FALSE)
     sources <- install_sources(backend, only_cran = config$only_cran)
     repos <- sources$repos
-    needs_build <- packages_to_build(packages, lib, repos)
+    refs <- package_refs(packages, sources$releases)
+    needs_build <- packages_to_build(refs, lib, repos)
     if (length(needs_build) > 0 && config$build == "never") {
       return(list(ok = FALSE, error = paste("needs compiling:", paste(needs_build, collapse = ", "))))
     }
-    install_packages(packages, lib, repos, needs_build, sources$env)
-    write_install_record(lib, repos, "latest", packages)
+    install_packages(refs, lib, repos, needs_build, sources$env)
+    write_install_record(lib, repos, "latest", refs)
     libpath <- default_libpath("arena")
   }
   load_test(backend, libpath)[[backend]]

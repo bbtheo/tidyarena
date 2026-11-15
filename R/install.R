@@ -22,8 +22,9 @@
 #' changed. Because tidyarena's library comes first in [arena_run()], the
 #' newer versions are the ones benchmarked.
 #'
-#' tidypolars is not on CRAN; it is installed from R-universe, together with
-#' polars, unless `only_cran = TRUE`. Some packages download a prebuilt
+#' tidypolars is not on CRAN; it is installed, together with polars, from
+#' their latest GitHub releases (not from their development versions), unless
+#' `only_cran = TRUE`. Some packages download a prebuilt
 #' library when they are compiled (arrow's C++ library, polars' Rust
 #' library), which saves building it. cuplyr needs RAPIDS and CUDA and can't
 #' be installed this way; `arena_install()` says how.
@@ -38,8 +39,8 @@
 #' @param snapshot Package Manager snapshot: `"latest"`, or a date such as
 #'   `"2026-03-01"` to install the versions that were current then. With a
 #'   date, packages in your own library are not used: everything is installed
-#'   into `lib`. R-universe has no snapshots: packages from there are always
-#'   the latest.
+#'   into `lib`. Packages from GitHub come from the latest release published
+#'   by that date.
 #' @param build What to do when a package has no binary: `"never"` to stop
 #'   and list the packages, `"capped"` to compile them with the limits
 #'   described above. Defaults to the setting in [arena_config()].
@@ -90,21 +91,23 @@ arena_install <- function(
   search <- if (identical(snapshot, "latest")) c(lib, .libPaths()) else lib
   todo <- packages[!packages_installed(packages, search)]
   if (update) {
-    todo <- union(todo, outdated_packages(setdiff(packages, todo), search, repos)$package)
+    outdated <- outdated_packages(setdiff(packages, todo), search, repos, sources$releases)
+    todo <- union(todo, outdated$package)
   }
   if (length(todo) == 0) {
     cli::cli_inform("All packages for {.val {backends}} are installed and up to date.")
     return(invisible(lib))
   }
 
-  cli::cli_inform("Resolving {.pkg {todo}} from {.url {repos}}.")
-  needs_build <- packages_to_build(todo, lib, repos)
+  refs <- package_refs(todo, sources$releases)
+  cli::cli_inform("Resolving {.pkg {refs}} from {.url {repos}}.")
+  needs_build <- packages_to_build(refs, lib, repos)
   if (length(needs_build) > 0 && build == "never") {
     abort_needs_build(needs_build)
   }
 
-  install_packages(todo, lib, repos, needs_build, sources$env)
-  write_install_record(lib, repos, snapshot, todo)
+  install_packages(refs, lib, repos, needs_build, sources$env)
+  write_install_record(lib, repos, snapshot, refs)
   cli::cli_inform("Installed {.pkg {todo}} in {.path {lib}}.")
   invisible(lib)
 }
@@ -144,13 +147,16 @@ inform_not_installable <- function(backends, lib) {
   }
 }
 
-# How a backend is installed: "cran" from Package Manager, "repos" from the
-# extra repositories in its `install` field, or "manual" when tidyarena
-# can't install it and its install hint says how.
+# How a backend is installed: "cran" from Package Manager, "github" from
+# the GitHub releases in its `install` field, "repos" from the extra
+# repositories there, or "manual" when tidyarena can't install it and its
+# install hint says how.
 install_route <- function(backend) {
   def <- backend_defs()[[backend]]
   if (!is.null(def$install_hint)) {
     "manual"
+  } else if (!is.null(def$install$github)) {
+    "github"
   } else if (!is.null(def$install$repos)) {
     "repos"
   } else {
@@ -160,41 +166,126 @@ install_route <- function(backend) {
 
 installable <- function(backend, only_cran = read_config()$only_cran) {
   route <- install_route(backend)
-  route == "cran" || (route == "repos" && !only_cran)
+  route == "cran" || (route %in% c("github", "repos") && !only_cran)
 }
 
-# Repositories, extra ones first, and build environment variables for
-# installing `backends`. With `only_cran`, Package Manager only and no
+# Where to install `backends` from: repositories (extra ones first), the
+# GitHub release tag of each package that comes from GitHub, and build
+# environment variables. With `only_cran`, Package Manager only and no
 # variables: those ask packages to download prebuilt libraries.
 install_sources <- function(backends, snapshot = "latest", only_cran = FALSE) {
   cran <- c(CRAN = ppm_url(snapshot, binary_target()))
   if (only_cran) {
-    return(list(repos = cran, env = character()))
+    return(list(repos = cran, releases = list(), env = character()))
   }
   defs <- backend_defs()[backends]
   field <- function(name) do.call(c, unname(lapply(defs, function(d) d$install[[name]])))
   repos <- field("repos")
+  github <- field("github")
+  github <- github[!duplicated(names(github))]
   env <- field("env")
   list(
     repos = c(repos[!duplicated(names(repos))], cran),
+    releases = lapply(github, function(repo) {
+      list(repo = repo, tag = github_release(repo, snapshot))
+    }),
     env = env[!duplicated(names(env))] %||% character()
   )
 }
 
-# Installed packages with a newer version in `repos`: a data frame with
-# columns package, installed and available.
-outdated_packages <- function(packages, libpath, repos) {
+# pak references: a package name, or `owner/repo@tag` for packages from a
+# GitHub release.
+package_refs <- function(packages, releases) {
+  vapply(
+    packages,
+    function(p) {
+      release <- releases[[p]]
+      if (is.null(release)) p else paste0("github::", release$repo, "@", release$tag)
+    },
+    character(1),
+    USE.NAMES = FALSE
+  )
+}
+
+# The release to install from a GitHub repository: the newest one that is
+# neither a draft nor a pre-release and has a version tag, published on or
+# before `snapshot` if that is a date. Releases, unlike the default branch,
+# change only when the authors decide, so results stay comparable.
+github_release <- function(repo, snapshot = "latest", call = rlang::caller_env()) {
+  key <- paste(repo, snapshot)
+  if (!is.null(the$releases[[key]])) {
+    return(the$releases[[key]])
+  }
+  releases <- github_get(sprintf("https://api.github.com/repos/%s/releases?per_page=100", repo))
+  keep <- vapply(
+    releases,
+    function(r) !isTRUE(r$draft) && !isTRUE(r$prerelease) && grepl("^v?[0-9]", r$tag_name),
+    logical(1)
+  )
+  releases <- releases[keep]
+  published <- as.Date(substr(vapply(releases, function(r) r$published_at, character(1)), 1, 10))
+  if (!identical(snapshot, "latest")) {
+    releases <- releases[published <= as.Date(snapshot)]
+    published <- published[published <= as.Date(snapshot)]
+  }
+  if (length(releases) == 0) {
+    cli::cli_abort(
+      "{.url https://github.com/{repo}} has no release{if (!identical(snapshot, 'latest')) paste(' from before', snapshot)}.",
+      call = call
+    )
+  }
+  tag <- releases[[order(published, decreasing = TRUE)[[1]]]]$tag_name
+  the$releases[[key]] <- tag
+  tag
+}
+
+# Whether the package at a `github::owner/repo@tag` reference has compiled
+# code.
+github_has_src <- function(ref) {
+  parts <- regmatches(ref, regexec("^github::([^@]+)@(.+)$", ref))[[1]]
+  contents <- github_get(sprintf("https://api.github.com/repos/%s/contents?ref=%s", parts[[2]], parts[[3]]))
+  any(vapply(contents, function(x) identical(x$name, "src") && identical(x$type, "dir"), logical(1)))
+}
+
+github_get <- function(url) {
+  path <- tempfile(fileext = ".json")
+  on.exit(unlink(path), add = TRUE)
+  token <- Sys.getenv("GITHUB_PAT", Sys.getenv("GITHUB_TOKEN"))
+  headers <- c(Accept = "application/vnd.github+json")
+  if (nzchar(token)) {
+    headers <- c(headers, Authorization = paste("Bearer", token))
+  }
+  utils::download.file(url, path, quiet = TRUE, headers = headers)
+  jsonlite::read_json(path)
+}
+
+# Installed packages with a newer version in `repos`, or, for packages from
+# GitHub releases, a version other than the release's (a development
+# version included): a data frame with columns package, installed and
+# available.
+outdated_packages <- function(packages, libpath, repos, releases = list()) {
   empty <- data.frame(package = character(), installed = character(), available = character())
   if (length(packages) == 0) {
     return(empty)
   }
-  available <- utils::available.packages(repos = repos)
+  from_cran <- setdiff(packages, names(releases))
+  available <- if (length(from_cran) > 0) utils::available.packages(repos = repos)
   rows <- lapply(packages, function(p) {
     path <- find.package(p, lib.loc = libpath, quiet = TRUE)
-    if (length(path) == 0 || !p %in% rownames(available)) {
+    if (length(path) == 0) {
       return(NULL)
     }
     installed <- utils::packageVersion(p, lib.loc = dirname(path[[1]]))
+    if (!is.null(releases[[p]])) {
+      release <- package_version(sub("^v", "", releases[[p]]$tag))
+      if (installed != release) {
+        return(data.frame(package = p, installed = as.character(installed), available = as.character(release)))
+      }
+      return(NULL)
+    }
+    if (!p %in% rownames(available)) {
+      return(NULL)
+    }
     newest <- package_version(available[p, "Version"])
     if (newest > installed) {
       data.frame(package = p, installed = as.character(installed), available = as.character(newest))
@@ -283,6 +374,10 @@ packages_to_build <- function(packages, lib, repos) {
   deps <- pak::pkg_deps(packages, dependencies = NA)
   todo <- !packages_installed(deps$package, c(lib, .Library))
   compiled <- deps$platform == "source" & deps$needscompilation %in% TRUE
+  # A DESCRIPTION in a Git repository has no NeedsCompilation field, so pak
+  # assumes compiled code; look for a src directory instead.
+  github <- grepl("^github::", deps$ref)
+  compiled[github] <- vapply(deps$ref[github], github_has_src, logical(1))
   sort(unique(deps$package[todo & compiled]))
 }
 
@@ -456,8 +551,8 @@ backend_status <- function(backends, libpath) {
   ok <- vapply(candidates, installable, logical(1), only_cran = config$only_cran)
   present <- candidates[installed & ok]
   packages <- unique(unlist(lapply(defs[present], `[[`, "packages")))
-  repos <- install_sources(present, only_cran = config$only_cran)$repos
-  outdated <- outdated_packages(packages, libpath, repos)
+  sources <- install_sources(present, only_cran = config$only_cran)
+  outdated <- outdated_packages(packages, libpath, sources$repos, sources$releases)
   uses_outdated <- vapply(
     present,
     function(b) any(defs[[b]]$packages %in% outdated$package),
