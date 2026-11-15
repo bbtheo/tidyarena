@@ -1,5 +1,5 @@
-schema_version <- 1L
-suite_version <- "2026.0-dev"
+schema_version <- 2L
+suite_version <- "2026.1-dev"
 
 #' Read the results of a run
 #'
@@ -60,6 +60,10 @@ summarise_cells <- function(records) {
       warmup_seconds = numeric(),
       peak_rss = numeric(),
       peak_rss_delta = numeric(),
+      compute_seconds = numeric(),
+      compute_peak_rss = numeric(),
+      compute_peak_rss_delta = numeric(),
+      compute_error = character(),
       spill_bytes = numeric(),
       reason = character(),
       error = character()
@@ -96,6 +100,23 @@ summarise_cells <- function(records) {
     },
     numeric(1)
   )
+  compute_seconds <- vapply(
+    timed,
+    function(reps) median_or_na(rep_values(reps, "compute_seconds")),
+    numeric(1)
+  )
+  compute_peak <- vapply(
+    records,
+    function(r) max_or_na(rep_values(r$reps, "compute_peak_rss")),
+    numeric(1)
+  )
+  compute_delta <- vapply(
+    records,
+    function(r) {
+      max_or_na(rep_values(r$reps, "compute_peak_rss") - rep_values(r$reps, "compute_base_rss"))
+    },
+    numeric(1)
+  )
 
   tibble::tibble(
     size = field("size", numeric(1)),
@@ -108,6 +129,10 @@ summarise_cells <- function(records) {
     warmup_seconds = warmup,
     peak_rss = peak,
     peak_rss_delta = delta,
+    compute_seconds = compute_seconds,
+    compute_peak_rss = compute_peak,
+    compute_peak_rss_delta = compute_delta,
+    compute_error = field("compute_error", character(1)),
     spill_bytes = field("spill_bytes", numeric(1)),
     reason = field("reason", character(1)),
     error = field("error", character(1))
@@ -119,15 +144,20 @@ reps_table <- function(records) {
     if (length(r$reps) == 0) {
       return(NULL)
     }
+    value <- function(name) vapply(r$reps, function(x) as_scalar(x[[name]], numeric(1)), numeric(1))
     tibble::tibble(
       size = as.numeric(r$size),
       task = r$task,
+      task_hash = as_scalar(r$task_hash, character(1)),
       backend = r$backend,
       rep = vapply(r$reps, function(x) as_scalar(x$rep, integer(1)), integer(1)),
       warmup = vapply(r$reps, function(x) isTRUE(x$warmup), logical(1)),
-      seconds = vapply(r$reps, function(x) as_scalar(x$seconds, numeric(1)), numeric(1)),
-      base_rss = vapply(r$reps, function(x) as_scalar(x$base_rss, numeric(1)), numeric(1)),
-      peak_rss = vapply(r$reps, function(x) as_scalar(x$peak_rss, numeric(1)), numeric(1))
+      seconds = value("seconds"),
+      base_rss = value("base_rss"),
+      peak_rss = value("peak_rss"),
+      compute_seconds = value("compute_seconds"),
+      compute_base_rss = value("compute_base_rss"),
+      compute_peak_rss = value("compute_peak_rss")
     )
   })
   rows <- Filter(Negate(is.null), rows)
@@ -141,7 +171,10 @@ reps_table <- function(records) {
       warmup = logical(),
       seconds = numeric(),
       base_rss = numeric(),
-      peak_rss = numeric()
+      peak_rss = numeric(),
+      compute_seconds = numeric(),
+      compute_base_rss = numeric(),
+      compute_peak_rss = numeric()
     ))
   }
   do.call(rbind, rows)

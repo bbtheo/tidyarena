@@ -9,6 +9,14 @@ list(
     "library(dplyr)",
     "duckplyr::db_exec(sprintf(\"SET memory_limit = '%dMB'\", .budget_mb))",
     "df <- duckplyr::as_duckdb_tibble(df)",
-    "lookup <- duckplyr::as_duckdb_tibble(lookup)"
+    "lookup <- duckplyr::as_duckdb_tibble(lookup)",
+    # compute() writes a temporary table; .release() drops it again, outside
+    # the timing, so that repetitions don't pile up tables in memory.
+    ".computed <- 0L",
+    ".compute <- function(x) {",
+    "  .computed <<- .computed + 1L",
+    "  dplyr::compute(x, name = paste0('tidyarena_', .computed))",
+    "}",
+    ".release <- function(x) duckplyr::db_exec(sprintf('DROP TABLE IF EXISTS tidyarena_%d', .computed))"
   )
 )

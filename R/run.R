@@ -260,6 +260,7 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
     error = truncate(scrub(result$error %||% NA_character_), 1000),
     setup_seconds = result$setup_seconds %||% NA_real_,
     reps = result$reps %||% list(),
+    compute_error = truncate(scrub(result$compute_error %||% NA_character_), 1000),
     peak_method = result$peak_method %||% NA_character_,
     poll_peak_rss = result$poll_peak_rss,
     spill_bytes = result$spill_bytes,

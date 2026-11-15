@@ -78,3 +78,13 @@
   with polars' prebuilt Rust library. arrow, where it has to be compiled,
   uses Apache's prebuilt C++ library. Backends declare such sources in a new
   `install` field.
+
+* Every repetition is now measured twice, each time from the data: *in R*
+  (the pipeline, `collect()` and reading every value of the result, so that
+  columns converted only when read are converted inside the timing) and
+  *compute* (the pipeline with `compute()`, the result kept in the backend).
+  Results have `compute_seconds` and `compute_peak_rss` next to `seconds`
+  and `peak_rss`, and `arena_report()` shows both. Backends can define
+  `.compute()` and `.release()` in their setup. Results from earlier
+  versions timed `collect()` without reading the values, so the suite
+  version is now 2026.1-dev.

@@ -11,6 +11,7 @@ local({
   .libPaths(spec$libpath)
 
   linux <- file.exists("/proc/self/status")
+  `%||%` <- function(x, y) if (is.null(x)) y else x
 
   status_bytes <- function(field) {
     if (!linux) {
@@ -158,29 +159,72 @@ local({
     unname(tools::md5sum(path))
   }
 
-  result$status <- "running"
-  for (rep in seq_len(spec$reps + 1L) - 1L) {
+  # Reads every value of a collected result, so that columns a backend
+  # converts only when they are first read (ALTREP) are converted inside the
+  # timing.
+  read_values <- function(x) {
+    for (col in x) {
+      if (is.character(col)) {
+        nchar(col, type = "bytes")
+      } else if (is.list(col)) {
+        lengths(col)
+      } else if (is.factor(col)) {
+        as.integer(col)
+      } else {
+        unclass(col) * 1
+      }
+    }
+    invisible(x)
+  }
+
+  # Runs the task once, in its own environment so that a task with several
+  # statements leaves nothing behind, and passes the result to `finish`.
+  # Returns the result, its time and its peak memory.
+  measure <- function(finish) {
     gc(full = TRUE)
     base_rss <- status_bytes("VmRSS")
     peak_reset <- reset_peak()
     t0 <- Sys.time()
-    out <- tryCatch(
-      capture(env$.collect(eval(task, envir = env))),
-      error = function(e) fail("error", e)
-    )
+    out <- capture(finish(eval(task, envir = new.env(parent = env))))
     seconds <- as.double(Sys.time() - t0, units = "secs")
     peak_rss <- if (peak_reset) status_bytes("VmHWM") else NA_real_
+    list(out = out, seconds = seconds, base_rss = base_rss, peak_rss = peak_rss)
+  }
+
+  # Two measurements per repetition, each from the data: "compute", the
+  # result computed where the backend keeps it (an Arrow table, a DuckDB
+  # table, GPU memory), and "collect", the result as R values in this
+  # process. The second is what correctness is checked on.
+  result$status <- "running"
+  for (rep in seq_len(spec$reps + 1L) - 1L) {
+    computed <- tryCatch(
+      measure(env$.compute),
+      error = function(e) list(error = conditionMessage(e))
+    )
+    if (!is.null(computed$error)) {
+      result$compute_error <- computed$error
+    } else if (exists(".release", envir = env, inherits = FALSE)) {
+      try(capture(env$.release(computed$out)), silent = TRUE)
+    }
+    computed$out <- NULL
+    collected <- tryCatch(
+      measure(function(x) read_values(env$.collect(x))),
+      error = function(e) fail("error", e)
+    )
     result$reps[[rep + 1L]] <- list(
       rep = rep,
       warmup = rep == 0L,
-      seconds = seconds,
-      base_rss = base_rss,
-      peak_rss = peak_rss
+      seconds = collected$seconds,
+      base_rss = collected$base_rss,
+      peak_rss = collected$peak_rss,
+      compute_seconds = computed$seconds %||% NA_real_,
+      compute_base_rss = computed$base_rss %||% NA_real_,
+      compute_peak_rss = computed$peak_rss %||% NA_real_
     )
     if (rep == spec$reps) {
-      result$fingerprint <- fingerprint(out)
+      result$fingerprint <- fingerprint(collected$out)
     }
-    rm(out)
+    rm(collected, computed)
     result$conditions <- conditions
     save_result()
   }

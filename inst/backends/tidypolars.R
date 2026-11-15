@@ -15,6 +15,8 @@ list(
     "library(tidypolars)",
     "df <- polars::as_polars_df(df)",
     "lookup <- polars::as_polars_df(lookup)",
-    ".collect <- function(x) tibble::as_tibble(as.data.frame(x))"
+    ".collect <- function(x) tibble::as_tibble(as.data.frame(x))",
+    # Eager Polars data frames are computed already.
+    ".compute <- function(x) if (inherits(x, \"polars_lazy_frame\")) dplyr::compute(x) else x"
   )
 )

@@ -44,13 +44,13 @@ arena_report <- function(x) {
 
   cli::cli_h2("Fastest backend per task")
   cli::cli_text(
-    "At the largest size each task ran on. Speed-up is dplyr's time divided by the backend's."
+    "At the largest size each task ran on, with the speed-up over dplyr. In R: the result collected into R, every value read. Compute: the result computed where the backend keeps it."
   )
   print_lines(fastest_table(cells))
 
   cli::cli_h2("Backends")
   cli::cli_text(
-    "Coverage: share of cells run correctly. Time and memory: geometric mean ratio to dplyr (lower is better)."
+    "Coverage: share of cells run correctly. Time and memory: geometric mean ratio to dplyr (lower is better), with the result in R and computed in the backend."
   )
   print_lines(format_backends(backends))
 
@@ -68,10 +68,19 @@ add_ratios <- function(cells) {
   key <- paste(cells$task, cells$size)
   anchor_key <- paste(anchor$task, anchor$size)
   memory <- function(d) ifelse(is.na(d$peak_rss_delta), d$peak_rss, d$peak_rss_delta)
+  compute_memory <- function(d) {
+    ifelse(is.na(d$compute_peak_rss_delta), d$compute_peak_rss, d$compute_peak_rss_delta)
+  }
   idx <- match(key, anchor_key)
   usable <- cells$status %in% c("ok", "fallback") & cells$correct %in% TRUE
   cells$time_ratio <- ifelse(usable, cells$seconds / anchor$seconds[idx], NA_real_)
   cells$mem_ratio <- ifelse(usable, memory(cells) / memory(anchor)[idx], NA_real_)
+  cells$compute_ratio <- ifelse(usable, cells$compute_seconds / anchor$compute_seconds[idx], NA_real_)
+  cells$compute_mem_ratio <- ifelse(
+    usable,
+    compute_memory(cells) / compute_memory(anchor)[idx],
+    NA_real_
+  )
   cells
 }
 
@@ -87,7 +96,9 @@ backend_summary <- function(cells) {
       wrong = sum(d$correct %in% FALSE),
       failed = sum(d$status %in% c(failure_statuses, "skipped")),
       time_ratio = geo_mean(d$time_ratio[good]),
-      mem_ratio = geo_mean(d$mem_ratio[good])
+      mem_ratio = geo_mean(d$mem_ratio[good]),
+      compute_ratio = geo_mean(d$compute_ratio[good]),
+      compute_mem_ratio = geo_mean(d$compute_mem_ratio[good])
     )
   })
   out <- do.call(rbind, rows)
@@ -106,18 +117,24 @@ fastest_table <- function(cells) {
   }
   rows <- lapply(split(good, good$task), function(d) {
     d <- d[d$size == max(d$size), ]
-    best <- d[which.min(d$seconds), ]
     anchor <- d[d$backend == anchor_backend, ]
+    best <- function(col) {
+      row <- d[which.min(d[[col]]), ]
+      if (nrow(row) == 0) {
+        return(c("-", "-"))
+      }
+      speed_up <- if (nrow(anchor)) sprintf("%.1fx", anchor[[col]] / row[[col]]) else "no dplyr"
+      c(row$backend, speed_up)
+    }
+    in_r <- best("seconds")
+    compute <- best("compute_seconds")
     data.frame(
-      task = best$task,
-      rows = format_n(best$size),
-      fastest = best$backend,
-      seconds = sprintf("%.3g", best$seconds),
-      `speed-up` = if (nrow(anchor)) {
-        sprintf("%.1fx", anchor$seconds / best$seconds)
-      } else {
-        "no dplyr"
-      },
+      task = d$task[[1]],
+      rows = format_n(d$size[[1]]),
+      `in R` = in_r[[1]],
+      ` ` = in_r[[2]],
+      compute = compute[[1]],
+      `  ` = compute[[2]],
       check.names = FALSE
     )
   })
@@ -129,11 +146,14 @@ format_backends <- function(backends) {
   table <- data.frame(
     backend = backends$backend,
     coverage = sprintf("%3.0f%%", 100 * backends$coverage),
-    time = format_ratio(backends$time_ratio),
-    memory = format_ratio(backends$mem_ratio),
+    `time R` = format_ratio(backends$time_ratio),
+    `time compute` = format_ratio(backends$compute_ratio),
+    `mem R` = format_ratio(backends$mem_ratio),
+    `mem compute` = format_ratio(backends$compute_mem_ratio),
     fallback = backends$fallback,
     wrong = backends$wrong,
-    failed = backends$failed
+    failed = backends$failed,
+    check.names = FALSE
   )
   utils::capture.output(print(table, row.names = FALSE))
 }

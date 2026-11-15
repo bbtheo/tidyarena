@@ -62,7 +62,7 @@ check_def <- function(def, id, kind, fields, call = rlang::caller_env()) {
 }
 
 # Backend definitions, the anchor first, with defaults filled in: not a GPU
-# backend, a memory factor of 3 and dplyr's collect().
+# backend, a memory factor of 3, and dplyr's collect() and compute().
 backend_defs <- function() {
   defs <- read_defs("backends")
   defs <- defs[union(anchor_backend, names(defs))]
@@ -70,6 +70,9 @@ backend_defs <- function() {
     def <- check_def(defs[[id]], id, "backends", backend_fields)
     if (!any(grepl("^\\s*\\.collect\\s*<-", def$setup))) {
       def$setup <- c(def$setup, ".collect <- function(x) dplyr::collect(x)")
+    }
+    if (!any(grepl("^\\s*\\.compute\\s*<-", def$setup))) {
+      def$setup <- c(def$setup, ".compute <- function(x) dplyr::compute(x)")
     }
     def$gpu <- def$gpu %||% FALSE
     def$mem_factor <- def$mem_factor %||% 3

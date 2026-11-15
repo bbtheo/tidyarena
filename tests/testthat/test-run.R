@@ -59,3 +59,23 @@ test_that("results record the hash of the task code", {
   res <- local_tiny_run()
   expect_equal(res$cells$task_hash[res$cells$task == "filter_rows"], arena_tasks()$hash[[4]])
 })
+
+test_that("each repetition is timed in R and computed in the backend", {
+  res <- local_tiny_run(tasks = "filter_rows")
+  reps <- res$reps[!res$reps$warmup, ]
+  expect_true(all(reps$compute_seconds > 0))
+  expect_true(all(reps$seconds > 0))
+  expect_true(all(!is.na(res$cells$compute_seconds)))
+})
+
+test_that("a backend whose compute fails still gets its in-R timing", {
+  skip_if_not_installed("dplyr")
+  withr::local_envvar(R_USER_CACHE_DIR = withr::local_tempdir())
+  defs <- backend_defs()
+  defs$nocompute <- defs$dplyr
+  defs$nocompute$setup <- c(defs$dplyr$setup[!grepl("^\\.compute", defs$dplyr$setup)], ".compute <- function(x) stop('no compute here')")
+  local_mocked_bindings(backend_defs = function() defs)
+  cells <- suppressMessages(conformance("filter_rows", c("dplyr", "nocompute"), 100, .libPaths()))
+  expect_equal(cells$status, c("ok", "ok"))
+  expect_true(cells$correct[[2]])
+})

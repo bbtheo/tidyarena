@@ -109,8 +109,15 @@ Results are written after every task. If a run is interrupted, call
 * **Data** is generated from a fixed seed, so every machine runs on
   identical tables (see `?arena_data`). It is loaded into each backend's
   own format before timing starts.
-* **Time** is the wall time of the pipeline plus `collect()`.
-* **Memory** is the peak resident memory of the process. On Linux it is
+* **Time** is measured twice, each from the data, because both answers
+  are useful:
+  * *in R*: the pipeline, `collect()`, and reading every value of the
+    result, so that backends that convert columns only when they are read
+    pay for it inside the timing;
+  * *compute*: the pipeline with `compute()`, the result computed where the
+    backend keeps it (a DuckDB table, an Arrow table, GPU memory), with
+    nothing transferred to R.
+* **Memory** is the peak resident memory of the process, for both. On Linux it is
   exact (the kernel's high-water mark, reset before every repetition);
   elsewhere it is sampled every 0.1 seconds.
 * **Correctness** compares a fingerprint of each result with dplyr's: row

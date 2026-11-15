@@ -42,6 +42,8 @@ fields:
 | Field | Default | Use |
 |---|---|---|
 | `.collect()` in `setup` | `dplyr::collect()` | Define it when collecting needs something else. |
+| `.compute()` in `setup` | `dplyr::compute()` | Computes the result and keeps it in the backend, for the compute timing. Define it when `compute()` doesn't run the query (dtplyr) or doesn't exist (eager Polars). |
+| `.release()` in `setup` | none | Frees what `.compute()` made, outside the timing, for example a temporary table. |
 | `teardown` | none | Code run after the task, for example to close a connection. |
 | `mem_factor` | 3 | Memory the backend needs relative to the data, for the plan. |
 | `fallback_pattern` | none | A regular expression matching the message the backend gives when it hands work back to dplyr. Such cells count as fallbacks, not as wins. |
