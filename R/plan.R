@@ -85,6 +85,7 @@ arena_plan <- function(
 
   out <- tibble::as_tibble(cells)
   attr(out, "settings") <- c(settings, list(budget = budget, tier = tier))
+  attr(out, "libpath") <- libpath
   out
 }
 

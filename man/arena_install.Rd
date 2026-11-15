@@ -32,12 +32,13 @@ Installs the packages of the given backends, and their dependencies, into
 a library of their own (see \code{\link[=arena_lib]{arena_lib()}}), so the packages being measured
 never mix with your own library. Packages come from Posit Package Manager
 through pak, which serves binaries for Windows, macOS and the common Linux
-distributions.
+distributions. On other Linux distributions with glibc 2.28 or newer (such
+as Arch, Fedora or Gentoo) on x86_64, it uses Package Manager's generic
+\code{manylinux_2_28} binaries.
 }
 \details{
-Some packages have no binary for your platform, for example on Linux
-distributions that Package Manager does not build for. They would have to
-be compiled, and compiling packages such as duckdb or arrow takes a long
+Some packages may still have no binary for your platform. They would have
+to be compiled, and compiling packages such as duckdb or arrow takes a long
 time and a lot of memory. By default \code{arena_install()} stops and lists
 them. With \code{build = "capped"} it compiles them, one package at a time, with
 a number of parallel compile jobs chosen from free memory and, on Linux

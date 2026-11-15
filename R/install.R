@@ -4,11 +4,12 @@
 #' a library of their own (see [arena_lib()]), so the packages being measured
 #' never mix with your own library. Packages come from Posit Package Manager
 #' through pak, which serves binaries for Windows, macOS and the common Linux
-#' distributions.
+#' distributions. On other Linux distributions with glibc 2.28 or newer (such
+#' as Arch, Fedora or Gentoo) on x86_64, it uses Package Manager's generic
+#' `manylinux_2_28` binaries.
 #'
-#' Some packages have no binary for your platform, for example on Linux
-#' distributions that Package Manager does not build for. They would have to
-#' be compiled, and compiling packages such as duckdb or arrow takes a long
+#' Some packages may still have no binary for your platform. They would have
+#' to be compiled, and compiling packages such as duckdb or arrow takes a long
 #' time and a lot of memory. By default `arena_install()` stops and lists
 #' them. With `build = "capped"` it compiles them, one package at a time, with
 #' a number of parallel compile jobs chosen from free memory and, on Linux
@@ -42,7 +43,7 @@ arena_install <- function(
   gpu <- vapply(defs, `[[`, logical(1), "gpu")
   backends <- check_ids(backends %||% names(defs)[!gpu], names(defs), "backends")
   packages <- unique(unlist(lapply(defs[backends], `[[`, "packages")))
-  repos <- c(CRAN = ppm_url(snapshot))
+  repos <- c(CRAN = ppm_url(snapshot, binary_target()))
 
   dir.create(lib, recursive = TRUE, showWarnings = FALSE)
   missing <- packages[!packages_installed(packages, lib)]
@@ -56,18 +57,24 @@ arena_install <- function(
   if (length(needs_build) > 0 && build == "never") {
     platform <- platform_label()
     has_binaries <- ppm_binaries()
+    target <- binary_target()
+    them <- if (length(needs_build) == 1) "it" else "them"
     cli::cli_abort(
       c(
         "{length(needs_build)} package{?s} {?has/have} no binary for this platform and would have to be compiled: {.pkg {needs_build}}.",
-        i = if (!has_binaries) {
+        i = if (!is.null(target)) {
+          "Posit Package Manager's {.val {target}} binaries, used on this platform, don't include {them}."
+        } else if (!has_binaries) {
           "Posit Package Manager has no binaries for {.val {platform}}."
         },
-        i = "To compile them with a memory limit, use {.code build = \"capped\"}. This can take a long time."
+        i = "Leave out the backends that need {them}, or compile:",
+        " " = "{.code build = \"capped\"} compiles with a memory limit. This can take a long time."
       )
     )
   }
 
   install_packages(missing, lib, repos, needs_build)
+  write_install_record(lib, repos, snapshot, missing)
   cli::cli_inform("Installed {.pkg {missing}} in {.path {lib}}.")
   invisible(lib)
 }
@@ -85,14 +92,52 @@ arena_lib <- function() {
   file.path(tools::R_user_dir("tidyarena", "data"), "lib", version)
 }
 
-ppm_url <- function(snapshot = "latest", call = rlang::caller_env()) {
+ppm_url <- function(snapshot = "latest", target = NULL, call = rlang::caller_env()) {
   if (!identical(snapshot, "latest") && is.na(as.Date(snapshot, optional = TRUE))) {
     cli::cli_abort(
       "{.arg snapshot} must be {.val latest} or a date like {.val 2026-03-01}.",
       call = call
     )
   }
-  paste0("https://p3m.dev/cran/", snapshot)
+  if (is.null(target)) {
+    paste0("https://p3m.dev/cran/", snapshot)
+  } else {
+    paste0("https://p3m.dev/cran/__linux__/", target, "/", snapshot)
+  }
+}
+
+# The Package Manager binary target to ask for explicitly, or NULL to let pak
+# choose. pak picks binaries itself on the platforms Package Manager builds
+# for; elsewhere on Linux the generic manylinux_2_28 binaries work wherever
+# glibc is 2.28 or newer.
+binary_target <- function() {
+  if (Sys.info()[["sysname"]] != "Linux" || ppm_binaries()) {
+    return(NULL)
+  }
+  glibc <- glibc_version()
+  if (R.version$arch == "x86_64" && !is.na(glibc) && glibc >= "2.28") {
+    return("manylinux_2_28")
+  }
+  NULL
+}
+
+glibc_version <- function() {
+  out <- run_quiet("getconf", "GNU_LIBC_VERSION")[[1]]
+  version <- sub("^glibc\\s+", "", out %||% NA_character_)
+  tryCatch(numeric_version(version), error = function(e) NA)
+}
+
+# Records where the packages in `lib` came from, for the run results.
+write_install_record <- function(lib, repos, snapshot, packages) {
+  path <- file.path(lib, "tidyarena-install.json")
+  old <- if (file.exists(path)) jsonlite::read_json(path) else list()
+  record <- list(
+    time = format_time(Sys.time()),
+    repo = unname(repos[[1]]),
+    snapshot = snapshot,
+    packages = as.list(packages)
+  )
+  jsonlite::write_json(c(old, list(record)), path, auto_unbox = TRUE, pretty = TRUE)
 }
 
 ppm_binaries <- function() {
@@ -118,7 +163,8 @@ packages_to_build <- function(packages, lib, repos) {
 # process gets a memory limit (a cgroup on Linux) and a number of make jobs
 # that fits in free memory.
 install_packages <- function(packages, lib, repos, needs_build) {
-  env <- c(R_LIBS_USER = lib)
+  # pak itself comes from the session's library; it installs into `lib`.
+  env <- character()
   budget <- default_budget()
   if (length(needs_build) > 0) {
     jobs <- build_jobs(budget)
@@ -182,4 +228,11 @@ build_jobs <- function(budget, per_job = 2.5 * 2^30) {
 default_libpath <- function() {
   lib <- arena_lib()
   if (dir.exists(lib)) c(lib, .libPaths()) else .libPaths()
+}
+
+# Install records of the libraries in `libpath` that arena_install() made.
+install_records <- function(libpath) {
+  paths <- file.path(libpath, "tidyarena-install.json")
+  records <- lapply(paths[file.exists(paths)], jsonlite::read_json)
+  unname(records)
 }

@@ -276,6 +276,7 @@ new_run <- function(dir, plan) {
     timeout = settings$timeout,
     budget = settings$budget,
     guard = guard_method(),
+    libraries = install_records(attr(plan, "libpath")),
     started = format_time(Sys.time()),
     finished = NULL,
     env = arena_env(dir)

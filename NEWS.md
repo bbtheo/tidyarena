@@ -9,7 +9,10 @@
 * `arena_install()` installs backends into tidyarena's own library
   (`arena_lib()`) as binaries from Posit Package Manager, optionally from a
   dated snapshot. It does not compile packages unless asked to with
-  `build = "capped"`, which limits compile jobs and memory.
+  `build = "capped"`, which limits compile jobs and memory. On Linux
+  distributions without their own Package Manager builds, it uses the
+  generic `manylinux_2_28` binaries. Where the packages came from is
+  recorded in the library and in every run's `run.json`.
 
 * Every grouped task now also exists with `.by` grouping (suffix `_by`), and
   `arena_tasks()` has an `idiom` column, because some backends run only one

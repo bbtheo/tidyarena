@@ -51,8 +51,11 @@ tidyarena::arena_install(c("dtplyr", "duckplyr", "dbplyr_duckdb", "arrow"))
 
 Packages come as binaries from Posit Package Manager, which builds them for
 Windows, macOS and the common Linux distributions (Ubuntu, Debian,
-RHEL/Rocky, openSUSE and others). On other distributions some packages would
-have to be compiled; `arena_install()` then stops and lists them. Compiling
+RHEL/Rocky, openSUSE and others). On other x86_64 Linux distributions with
+glibc 2.28 or newer, such as Arch or Fedora, it uses Package Manager's
+generic `manylinux_2_28` binaries. Those don't cover every package (arrow is
+missing, for example). When a package would have to be compiled,
+`arena_install()` stops and lists it. Compiling
 duckdb or arrow takes a long time and several GB of memory per compile job.
 If you want to do it anyway, `build = "capped"` compiles them with a number
 of jobs that fits in free memory and, on Linux with systemd, inside a memory
