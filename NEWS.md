@@ -10,3 +10,7 @@
   (`arena_lib()`) as binaries from Posit Package Manager, optionally from a
   dated snapshot. It does not compile packages unless asked to with
   `build = "capped"`, which limits compile jobs and memory.
+
+* Every grouped task now also exists with `.by` grouping (suffix `_by`), and
+  `arena_tasks()` has an `idiom` column, because some backends run only one
+  of the two forms. The suite has 23 tasks.

@@ -16,6 +16,10 @@ A tibble with one row per task:
 column whose sequence is checked; \code{NA} otherwise.
 \item \code{mem_factor}: rough size of the intermediate data relative to \code{df},
 used by \code{\link[=arena_plan]{arena_plan()}} to estimate peak memory.
+\item \code{idiom}: for grouped tasks, how the grouping is written: \code{"group_by"}
+or \code{".by"}. Every grouped task exists in both forms (the \code{.by} one
+has the suffix \verb{_by}), because some backends run only one of them.
+\code{NA} for tasks without grouping.
 }
 }
 \description{

@@ -62,7 +62,7 @@ run <- arena_run("quick")
 arena_report(run)
 ```
 
-The quick tier runs 15 tasks at 1e6 and 1e7 rows, with one warm-up and
+The quick tier runs 23 tasks at 1e6 and 1e7 rows, with one warm-up and
 three timed repetitions per task. `"standard"` adds 1e8 rows and
 `"full"` adds 1e9.
 
