@@ -43,3 +43,80 @@ test_that("arena_install() does nothing when everything is installed", {
   local_mocked_bindings(packages_installed = function(packages, lib) rep(TRUE, length(packages)))
   expect_message(arena_install("dplyr", lib = withr::local_tempdir()), "installed")
 })
+
+local_status <- function(missing = character(), outdated = NULL, env = parent.frame()) {
+  outdated <- outdated %||%
+    data.frame(package = character(), installed = character(), available = character())
+  status <- list(
+    missing = missing,
+    elsewhere = character(),
+    outdated = outdated,
+    outdated_backends = if (nrow(outdated)) "dtplyr" else character()
+  )
+  installs <- new.env()
+  installs$calls <- list()
+  local_mocked_bindings(
+    backend_status = function(...) status,
+    install_backends = function(backends, update = FALSE) {
+      installs$calls <- c(installs$calls, list(list(backends = backends, update = update)))
+    },
+    .env = env
+  )
+  installs
+}
+
+old_dt <- data.frame(package = "data.table", installed = "1.18.4", available = "1.18.6")
+
+test_that("offer_installs() asks before installing", {
+  skip_if_not_installed("pak")
+  installs <- local_status(missing = "duckplyr", outdated = old_dt)
+  answers <- c(TRUE, FALSE)
+  local_mocked_bindings(
+    ask_yes_no = function(...) {
+      answer <- answers[[1]]
+      answers <<- answers[-1]
+      answer
+    }
+  )
+  rlang::local_interactive(TRUE)
+  offer_installs(NULL, "ask", .libPaths())
+  expect_length(installs$calls, 1)
+  expect_equal(installs$calls[[1]]$backends, "duckplyr")
+  expect_false(installs$calls[[1]]$update)
+})
+
+test_that("offer_installs() installs and updates without asking when told to", {
+  skip_if_not_installed("pak")
+  installs <- local_status(missing = "duckplyr", outdated = old_dt)
+  local_mocked_bindings(ask_yes_no = function(...) stop("should not ask"))
+  offer_installs(NULL, "update", .libPaths())
+  expect_equal(installs$calls[[1]]$backends, "duckplyr")
+  expect_equal(installs$calls[[2]]$backends, "dtplyr")
+  expect_true(installs$calls[[2]]$update)
+})
+
+test_that("offer_installs() only reports when not interactive", {
+  skip_if_not_installed("pak")
+  installs <- local_status(missing = "duckplyr", outdated = old_dt)
+  rlang::local_interactive(FALSE)
+  expect_snapshot(offer_installs(NULL, "ask", .libPaths()))
+  expect_length(installs$calls, 0)
+})
+
+test_that("offer_installs() does nothing with install = 'never'", {
+  installs <- local_status(missing = "duckplyr")
+  expect_silent(offer_installs(NULL, "never", .libPaths()))
+  expect_length(installs$calls, 0)
+})
+
+test_that("outdated_packages() compares with the repository", {
+  local_mocked_bindings(
+    available.packages = function(...) {
+      matrix("99.0.0", dimnames = list("rlang", "Version"))
+    },
+    .package = "utils"
+  )
+  out <- outdated_packages(c("rlang", "nonexistent"), .libPaths(), c(CRAN = "x"))
+  expect_equal(out$package, "rlang")
+  expect_equal(out$available, "99.0.0")
+})

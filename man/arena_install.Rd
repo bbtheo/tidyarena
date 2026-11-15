@@ -8,21 +8,27 @@ arena_install(
   backends = NULL,
   lib = arena_lib(),
   snapshot = "latest",
-  build = c("never", "capped")
+  build = c("never", "capped"),
+  update = FALSE
 )
 }
 \arguments{
 \item{backends}{Backend ids, see \code{\link[=arena_backends]{arena_backends()}}. Defaults to all
-backends except those that need a GPU.}
+backends on CRAN.}
 
 \item{lib}{Library to install into. Defaults to \code{\link[=arena_lib]{arena_lib()}}.}
 
 \item{snapshot}{Package Manager snapshot: \code{"latest"}, or a date such as
-\code{"2026-03-01"} to install the versions that were current then.}
+\code{"2026-03-01"} to install the versions that were current then. With a
+date, packages in your own library are not used: everything is installed
+into \code{lib}.}
 
 \item{build}{What to do when a package has no binary: \code{"never"} to stop
 and list the packages, \code{"capped"} to compile them with the limits
 described above.}
+
+\item{update}{If \code{TRUE}, also install newer versions of backend packages
+that are already installed.}
 }
 \value{
 The library path, invisibly.
@@ -44,10 +50,19 @@ them. With \code{build = "capped"} it compiles them, one package at a time, with
 a number of parallel compile jobs chosen from free memory and, on Linux
 with systemd, inside a memory limit with swap disabled, so a build that
 runs out of memory is stopped instead of freezing the machine.
+
+Packages that are already installed in your library are not installed
+again, unless \code{update = TRUE} and Package Manager has a newer version. Newer
+versions go into tidyarena's library too; your own library is never
+changed. Because tidyarena's library comes first in \code{\link[=arena_run]{arena_run()}}, the
+newer versions are the ones benchmarked.
+
+Backends that are not on CRAN (cuplyr, tidypolars) can't be installed this
+way; \code{arena_install()} says where to get them.
 }
 \examples{
 \dontrun{
 arena_install(c("dtplyr", "duckplyr"))
-arena_run("quick", libpath = arena_lib())
+arena_install(update = TRUE)
 }
 }

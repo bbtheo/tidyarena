@@ -16,67 +16,131 @@
 #' with systemd, inside a memory limit with swap disabled, so a build that
 #' runs out of memory is stopped instead of freezing the machine.
 #'
+#' Packages that are already installed in your library are not installed
+#' again, unless `update = TRUE` and Package Manager has a newer version. Newer
+#' versions go into tidyarena's library too; your own library is never
+#' changed. Because tidyarena's library comes first in [arena_run()], the
+#' newer versions are the ones benchmarked.
+#'
+#' Backends that are not on CRAN (cuplyr, tidypolars) can't be installed this
+#' way; `arena_install()` says where to get them.
+#'
 #' @param backends Backend ids, see [arena_backends()]. Defaults to all
-#'   backends except those that need a GPU.
+#'   backends on CRAN.
 #' @param lib Library to install into. Defaults to [arena_lib()].
 #' @param snapshot Package Manager snapshot: `"latest"`, or a date such as
-#'   `"2026-03-01"` to install the versions that were current then.
+#'   `"2026-03-01"` to install the versions that were current then. With a
+#'   date, packages in your own library are not used: everything is installed
+#'   into `lib`.
 #' @param build What to do when a package has no binary: `"never"` to stop
 #'   and list the packages, `"capped"` to compile them with the limits
 #'   described above.
+#' @param update If `TRUE`, also install newer versions of backend packages
+#'   that are already installed.
 #' @returns The library path, invisibly.
 #' @export
 #' @examples
 #' \dontrun{
 #' arena_install(c("dtplyr", "duckplyr"))
-#' arena_run("quick", libpath = arena_lib())
+#' arena_install(update = TRUE)
 #' }
 arena_install <- function(
   backends = NULL,
   lib = arena_lib(),
   snapshot = "latest",
-  build = c("never", "capped")
+  build = c("never", "capped"),
+  update = FALSE
 ) {
   rlang::check_installed("pak", reason = "to install backends.")
   build <- rlang::arg_match(build)
   defs <- backend_defs()
-  gpu <- vapply(defs, `[[`, logical(1), "gpu")
-  backends <- check_ids(backends %||% names(defs)[!gpu], names(defs), "backends")
+  on_cran <- vapply(defs, function(x) is.null(x$install_hint), logical(1))
+  backends <- check_ids(backends %||% names(defs)[on_cran], names(defs), "backends")
+  inform_not_on_cran(backends[!on_cran[backends]], lib)
+  backends <- backends[on_cran[backends]]
   packages <- unique(unlist(lapply(defs[backends], `[[`, "packages")))
   repos <- c(CRAN = ppm_url(snapshot, binary_target()))
 
   dir.create(lib, recursive = TRUE, showWarnings = FALSE)
-  missing <- packages[!packages_installed(packages, lib)]
-  if (length(missing) == 0) {
-    cli::cli_inform("All packages for {.val {backends}} are installed in {.path {lib}}.")
+  # With a dated snapshot, packages from the user's library would defeat the
+  # point, so only `lib` counts.
+  search <- if (identical(snapshot, "latest")) c(lib, .libPaths()) else lib
+  todo <- packages[!packages_installed(packages, search)]
+  if (update) {
+    todo <- union(todo, outdated_packages(setdiff(packages, todo), search, repos)$package)
+  }
+  if (length(todo) == 0) {
+    cli::cli_inform("All packages for {.val {backends}} are installed and up to date.")
     return(invisible(lib))
   }
 
-  cli::cli_inform("Resolving {.pkg {missing}} from {.url {repos[[1]]}}.")
-  needs_build <- packages_to_build(missing, lib, repos)
+  cli::cli_inform("Resolving {.pkg {todo}} from {.url {repos[[1]]}}.")
+  needs_build <- packages_to_build(todo, lib, repos)
   if (length(needs_build) > 0 && build == "never") {
-    platform <- platform_label()
-    has_binaries <- ppm_binaries()
-    target <- binary_target()
-    them <- if (length(needs_build) == 1) "it" else "them"
-    cli::cli_abort(
-      c(
-        "{length(needs_build)} package{?s} {?has/have} no binary for this platform and would have to be compiled: {.pkg {needs_build}}.",
-        i = if (!is.null(target)) {
-          "Posit Package Manager's {.val {target}} binaries, used on this platform, don't include {them}."
-        } else if (!has_binaries) {
-          "Posit Package Manager has no binaries for {.val {platform}}."
-        },
-        i = "Leave out the backends that need {them}, or compile:",
-        " " = "{.code build = \"capped\"} compiles with a memory limit. This can take a long time."
-      )
-    )
+    abort_needs_build(needs_build)
   }
 
-  install_packages(missing, lib, repos, needs_build)
-  write_install_record(lib, repos, snapshot, missing)
-  cli::cli_inform("Installed {.pkg {missing}} in {.path {lib}}.")
+  install_packages(todo, lib, repos, needs_build)
+  write_install_record(lib, repos, snapshot, todo)
+  cli::cli_inform("Installed {.pkg {todo}} in {.path {lib}}.")
   invisible(lib)
+}
+
+abort_needs_build <- function(needs_build, call = rlang::caller_env()) {
+  platform <- platform_label()
+  has_binaries <- ppm_binaries()
+  target <- binary_target()
+  them <- if (length(needs_build) == 1) "it" else "them"
+  cli::cli_abort(
+    c(
+      "{length(needs_build)} package{?s} {?has/have} no binary for this platform and would have to be compiled: {.pkg {needs_build}}.",
+      i = if (!is.null(target)) {
+        "Posit Package Manager's {.val {target}} binaries, used on this platform, don't include {them}."
+      } else if (!has_binaries) {
+        "Posit Package Manager has no binaries for {.val {platform}}."
+      },
+      i = "Leave out the backends that need {them}, or compile:",
+      " " = "{.code build = \"capped\"} compiles with a memory limit. This can take a long time."
+    ),
+    class = "tidyarena_needs_build",
+    call = call
+  )
+}
+
+inform_not_on_cran <- function(backends, lib) {
+  defs <- backend_defs()
+  for (backend in backends) {
+    if (!all(packages_installed(defs[[backend]]$packages, c(lib, .libPaths())))) {
+      cli::cli_inform(c(
+        "!" = "{.val {backend}} is not on CRAN, so it can't be installed from Package Manager.",
+        i = defs[[backend]]$install_hint
+      ))
+    }
+  }
+}
+
+# Installed packages with a newer version in `repos`: a data frame with
+# columns package, installed and available.
+outdated_packages <- function(packages, libpath, repos) {
+  empty <- data.frame(package = character(), installed = character(), available = character())
+  if (length(packages) == 0) {
+    return(empty)
+  }
+  available <- utils::available.packages(repos = repos)
+  rows <- lapply(packages, function(p) {
+    path <- find.package(p, lib.loc = libpath, quiet = TRUE)
+    if (length(path) == 0 || !p %in% rownames(available)) {
+      return(NULL)
+    }
+    installed <- utils::packageVersion(p, lib.loc = dirname(path[[1]]))
+    newest <- package_version(available[p, "Version"])
+    if (newest > installed) {
+      data.frame(package = p, installed = as.character(installed), available = as.character(newest))
+    }
+  })
+  out <- do.call(rbind, c(list(empty), rows))
+  rownames(out) <- NULL
+  out
 }
 
 #' The library tidyarena installs backends into
@@ -235,4 +299,145 @@ install_records <- function(libpath) {
   paths <- file.path(libpath, "tidyarena-install.json")
   records <- lapply(paths[file.exists(paths)], jsonlite::read_json)
   unname(records)
+}
+
+# Before a run: finds missing and outdated backends and, depending on
+# `install`, asks about them, installs them or just mentions them.
+offer_installs <- function(backends, install, libpath) {
+  if (install == "never") {
+    return(invisible())
+  }
+  if (!rlang::is_installed("pak")) {
+    return(invisible())
+  }
+  status <- tryCatch(
+    backend_status(backends, libpath),
+    error = function(e) {
+      cli::cli_inform(c(
+        "!" = "Couldn't check Posit Package Manager for backends, running with what is installed.",
+        " " = conditionMessage(e)
+      ))
+      NULL
+    }
+  )
+  if (is.null(status)) {
+    return(invisible())
+  }
+  if (length(status$elsewhere) > 0) {
+    cli::cli_inform(c(
+      i = "Not installed, and not on CRAN: {.val {status$elsewhere}}.",
+      vapply(status$elsewhere, function(b) backend_defs()[[b]]$install_hint, character(1))
+    ))
+  }
+  has_missing <- length(status$missing) > 0
+  has_outdated <- nrow(status$outdated) > 0
+  if (!has_missing && !has_outdated) {
+    return(invisible())
+  }
+
+  outdated_lines <- sprintf(
+    "%s %s -> %s",
+    status$outdated$package,
+    status$outdated$installed,
+    status$outdated$available
+  )
+  if (install == "ask" && !rlang::is_interactive()) {
+    cli::cli_inform(c(
+      i = if (has_missing) "Not installed: {.val {status$missing}}.",
+      i = if (has_outdated) "Newer versions available: {outdated_lines}.",
+      i = "Install them with {.fn arena_install}, or pass {.arg install} to {.fn arena_run}."
+    ))
+    return(invisible())
+  }
+
+  if (has_missing) {
+    question <- "{length(status$missing)} backend{?s} {?is/are} not installed: {.val {status$missing}}. Install {?it/them}?"
+    if (install %in% c("missing", "update") || ask_yes_no(question)) {
+      install_backends(status$missing)
+    }
+  }
+  if (has_outdated) {
+    question <- c(
+      "Newer versions are available:",
+      stats::setNames(outdated_lines, rep("*", length(outdated_lines))),
+      "Install them into tidyarena's library? Your own library is not changed."
+    )
+    if (install == "update" || (install == "ask" && ask_yes_no(question))) {
+      install_backends(status$outdated_backends, update = TRUE)
+    }
+  }
+  invisible()
+}
+
+# Missing and outdated backends among `backends` (default: all that can run
+# here). Backends not on CRAN are reported apart, in `elsewhere`.
+backend_status <- function(backends, libpath) {
+  defs <- backend_defs()
+  has_gpu <- nzchar(Sys.which("nvidia-smi"))
+  runnable <- names(defs)[!vapply(defs, `[[`, logical(1), "gpu") | has_gpu]
+  candidates <- union(anchor_backend, backends %||% runnable)
+  installed <- vapply(
+    candidates,
+    function(b) all(packages_installed(defs[[b]]$packages, libpath)),
+    logical(1)
+  )
+  on_cran <- vapply(candidates, function(b) is.null(defs[[b]]$install_hint), logical(1))
+  present <- candidates[installed]
+  packages <- unique(unlist(lapply(defs[present], `[[`, "packages")))
+  outdated <- outdated_packages(packages, libpath, c(CRAN = ppm_url("latest", binary_target())))
+  uses_outdated <- vapply(
+    present,
+    function(b) any(defs[[b]]$packages %in% outdated$package),
+    logical(1)
+  )
+  list(
+    missing = candidates[!installed & on_cran],
+    elsewhere = candidates[!installed & !on_cran & candidates %in% (backends %||% character())],
+    outdated = outdated,
+    outdated_backends = present[uses_outdated & on_cran[installed]]
+  )
+}
+
+# Installs backends one at a time, so that one that would need compiling
+# doesn't stop the others.
+install_backends <- function(backends, update = FALSE) {
+  for (backend in backends) {
+    tryCatch(
+      arena_install(backend, update = update),
+      tidyarena_needs_build = function(e) {
+        cli::cli_inform(c(
+          "!" = "Skipping {.val {backend}}: it would have to be compiled.",
+          i = "Use {.code arena_install({.str {backend}}, build = \"capped\")} to compile it with a memory limit."
+        ))
+      }
+    )
+  }
+  invisible()
+}
+
+ask_yes_no <- function(question, .envir = parent.frame()) {
+  if (!rlang::is_interactive()) {
+    return(FALSE)
+  }
+  cli::cli_inform(question, .envir = .envir)
+  utils::menu(c("Yes", "No")) == 1
+}
+
+# For each package, "arena" if it is loaded from tidyarena's library,
+# "session" otherwise, and NA if it is not installed.
+package_sources <- function(packages, libpath) {
+  arena <- normalizePath(arena_lib(), mustWork = FALSE)
+  sources <- vapply(
+    packages,
+    function(p) {
+      path <- find.package(p, lib.loc = libpath, quiet = TRUE)
+      if (length(path) == 0) {
+        return(NA_character_)
+      }
+      lib <- normalizePath(dirname(path[[1]]), mustWork = FALSE)
+      if (identical(lib, arena)) "arena" else "session"
+    },
+    character(1)
+  )
+  as.list(sources)
 }

@@ -22,7 +22,20 @@
 #' whether a backend fell back to dplyr, whether its result matches dplyr's,
 #' how much it spilled to disk, and the versions of every loaded package.
 #'
+#' @section Installing backends:
+#' Before a new run starts, `arena_run()` checks the requested backends (all
+#' of them, if `backends` is `NULL`): which are not installed, and which have
+#' newer versions on Posit Package Manager. With `install = "ask"`, the
+#' default, it asks whether to install the missing ones and whether to update
+#' the outdated ones. Both go into tidyarena's own library ([arena_lib()]);
+#' your library is not changed. See [arena_install()]. Outside an interactive
+#' session it does not ask, and installs nothing.
+#'
 #' @inheritParams arena_plan
+#' @param install What to do about missing and outdated backends before the
+#'   run: `"ask"` (only in interactive sessions), `"missing"` to install
+#'   missing backends, `"update"` to install missing backends and update
+#'   outdated ones, or `"never"`.
 #' @param dir Directory for the results. Defaults to a new directory under
 #'   [tools::R_user_dir()]. Pass the directory of an earlier run to resume
 #'   it.
@@ -40,9 +53,11 @@ arena_run <- function(
   sizes = NULL,
   budget = NULL,
   libpath = default_libpath(),
+  install = c("ask", "missing", "update", "never"),
   dir = NULL
 ) {
   tier <- rlang::arg_match(tier)
+  install <- rlang::arg_match(install)
   resuming <- !is.null(dir) && file.exists(file.path(dir, "run.json"))
   if (resuming) {
     run <- read_run_json(dir)
@@ -56,6 +71,13 @@ arena_run <- function(
       libpath = libpath
     )
   } else {
+    # `libpath` is not evaluated before this, so that its default includes
+    # tidyarena's library when installing has just created it.
+    if (missing(libpath)) {
+      offer_installs(backends, install, default_libpath())
+    } else if (arena_lib() %in% libpath) {
+      offer_installs(backends, install, libpath)
+    }
     plan <- arena_plan(tier, backends, tasks, sizes, budget, libpath)
     check_disk(plan)
     dir <- dir %||% new_run_dir()
@@ -198,7 +220,8 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
     setup_conditions = utils::head(truncate(scrub(result$setup_conditions), 300), 20),
     fingerprint = result$fingerprint,
     data_fingerprint = data$fingerprint,
-    versions = as.list(result$versions[backend_versions(result$versions, backend)])
+    versions = as.list(result$versions[backend_versions(result$versions, backend)]),
+    package_sources = package_sources(backend$packages, libpath)
   )
 }
 

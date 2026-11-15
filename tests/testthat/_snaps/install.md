@@ -11,11 +11,20 @@
     Code
       arena_install("duckplyr", lib = lib)
     Message
-      Resolving dplyr and duckplyr from <https://p3m.dev/cran/latest>.
+      Resolving duckplyr from <https://p3m.dev/cran/latest>.
     Condition
       Error in `arena_install()`:
       ! 2 packages have no binary for this platform and would have to be compiled: duckdb and cli.
       i Posit Package Manager has no binaries for "x86_64-pc-linux-gnu-somedistro".
       i Leave out the backends that need them, or compile:
         `build = "capped"` compiles with a memory limit. This can take a long time.
+
+# offer_installs() only reports when not interactive
+
+    Code
+      offer_installs(NULL, "ask", .libPaths())
+    Message
+      i Not installed: "duckplyr".
+      i Newer versions available: data.table 1.18.4 -> 1.18.6.
+      i Install them with `arena_install()`, or pass `install` to `arena_run()`.
 

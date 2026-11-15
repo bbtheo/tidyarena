@@ -121,6 +121,7 @@ backend_defs <- function() {
     tidypolars = list(
       packages = c("dplyr", "polars", "tidypolars"),
       gpu = FALSE,
+      install_hint = "Install polars and tidypolars from R-universe: {.url https://rpolars.r-universe.dev}.",
       mem_factor = 3,
       setup = c(
         "library(dplyr)",
@@ -133,6 +134,7 @@ backend_defs <- function() {
     cuplyr = list(
       packages = c("dplyr", "cuplyr"),
       gpu = TRUE,
+      install_hint = "Install cuplyr from GitHub: {.url https://github.com/bbtheo/cuplyr}.",
       mem_factor = 2,
       setup = c(
         "library(dplyr)",

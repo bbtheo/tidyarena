@@ -7,6 +7,7 @@ local_tiny_run <- function(tasks = c("filter_rows", "summarise_lowcard"), env = 
     backends = "dplyr",
     tasks = tasks,
     sizes = 1e3,
+    install = "never",
     dir = file.path(dir, "run")
   ))
 }

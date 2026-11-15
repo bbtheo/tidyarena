@@ -11,6 +11,7 @@ arena_run(
   sizes = NULL,
   budget = NULL,
   libpath = default_libpath(),
+  install = c("ask", "missing", "update", "never"),
   dir = NULL
 )
 }
@@ -30,6 +31,11 @@ available memory, leaving at least 2 GB free.}
 
 \item{libpath}{Library paths the backends are loaded from. Defaults to
 \code{\link[=arena_lib]{arena_lib()}}, when it exists, followed by the session's library paths.}
+
+\item{install}{What to do about missing and outdated backends before the
+run: \code{"ask"} (only in interactive sessions), \code{"missing"} to install
+missing backends, \code{"update"} to install missing backends and update
+outdated ones, or \code{"never"}.}
 
 \item{dir}{Directory for the results. Defaults to a new directory under
 \code{\link[tools:R_user_dir]{tools::R_user_dir()}}. Pass the directory of an earlier run to resume
@@ -63,6 +69,17 @@ and peak resident memory of the process during it (exact on Linux,
 sampled every 0.1 seconds elsewhere). For each cell: whether it ran,
 whether a backend fell back to dplyr, whether its result matches dplyr's,
 how much it spilled to disk, and the versions of every loaded package.
+}
+
+\section{Installing backends}{
+
+Before a new run starts, \code{arena_run()} checks the requested backends (all
+of them, if \code{backends} is \code{NULL}): which are not installed, and which have
+newer versions on Posit Package Manager. With \code{install = "ask"}, the
+default, it asks whether to install the missing ones and whether to update
+the outdated ones. Both go into tidyarena's own library (\code{\link[=arena_lib]{arena_lib()}});
+your library is not changed. See \code{\link[=arena_install]{arena_install()}}. Outside an interactive
+session it does not ask, and installs nothing.
 }
 
 \examples{
