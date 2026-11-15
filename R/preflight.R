@@ -23,6 +23,7 @@ load_test <- function(backends, libpath, guard = guard_method()) {
       setup = defs[[backend]]$setup,
       teardown = defs[[backend]]$teardown,
       data = data[c("df", "lookup")],
+    reader_lib = reader_lib(),
       reps = 0L,
       budget_mb = 1024,
       libpath = libpath,

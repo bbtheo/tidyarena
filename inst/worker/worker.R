@@ -2,9 +2,9 @@
 #
 # Started by tidyarena in a fresh R process as `Rscript worker.R spec.rds`.
 # Uses base R only, so that nothing tidyarena depends on is loaded next to
-# the packages being measured. Writes its result to `spec$out` after setup
-# and after every repetition, so a kill loses at most the repetition that
-# was running.
+# the packages being measured; nanoparquet reads the tables and is unloaded
+# again. Writes its result to `spec$out` after setup and after every
+# repetition, so a kill loses at most the repetition that was running.
 
 local({
   spec <- readRDS(commandArgs(trailingOnly = TRUE)[[1]])
@@ -80,9 +80,19 @@ local({
     quit(save = "no", status = 0)
   }
 
+  # The tables are Parquet files, read into plain data frames. nanoparquet
+  # is unloaded again so that only the backend's packages stay loaded.
+  read_table <- function(path) {
+    reader <- loadNamespace("nanoparquet", lib.loc = spec$reader_lib)
+    table <- reader$read_parquet(path)
+    class(table) <- "data.frame"
+    table
+  }
   env <- new.env(parent = globalenv())
-  env$df <- readRDS(spec$data$df)
-  env$lookup <- readRDS(spec$data$lookup)
+  env$df <- read_table(spec$data$df)
+  env$lookup <- read_table(spec$data$lookup)
+  try(unloadNamespace("nanoparquet"), silent = TRUE)
+  gc()
   env$.budget_mb <- spec$budget_mb
 
   t0 <- Sys.time()

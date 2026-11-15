@@ -60,3 +60,9 @@
   also measures its memory factor. `arena_tasks()` has a `hash` of each
   task's code, which results record and resumed runs check.
   `vignette("extending")` explains how to add a task or a backend.
+
+* The generated tables are cached as uncompressed Parquet files, written and
+  read with nanoparquet, instead of `.rds` files. At 1e7 rows a worker loads
+  them in 0.3 s instead of 1.4 s, and they take about half the disk space.
+  The worker unloads nanoparquet before the backend's setup. Existing
+  `.rds` caches are replaced the next time a size is used.

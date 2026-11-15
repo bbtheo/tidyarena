@@ -222,6 +222,7 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
     setup = backend$setup,
     teardown = backend$teardown,
     data = data[c("df", "lookup")],
+    reader_lib = reader_lib(),
     reps = settings$reps,
     budget_mb = floor(settings$budget / 2^20),
     libpath = libpath,
@@ -416,9 +417,9 @@ check_disk <- function(plan, call = rlang::caller_env()) {
     dir,
     paste0("gen", generator_version),
     vapply(sizes, format_n, character(1)),
-    "df.rds"
+    "df.parquet"
   ))
-  need <- sum(data_bytes(sizes[!cached]) * 1.5) + 2^30
+  need <- sum(data_disk_bytes(sizes[!cached])) + 2^30
   free <- ps::ps_disk_usage(dir)$available[[1]]
   if (need > free) {
     cli::cli_abort(

@@ -19,8 +19,8 @@ A list with the paths of the two tables (\code{df}, \code{lookup}) and the
 The tables are generated from a fixed seed with fixed random number
 generators, so every machine runs on the same data. Generation runs in a
 separate R process, so the memory it takes is released when it is done.
-Tables are cached as uncompressed \code{.rds} files and reused when their
-fingerprint matches.
+Tables are cached as uncompressed Parquet files, which load faster than
+\code{.rds} files, and reused when their fingerprint matches.
 }
 \details{
 \code{df} has these columns:

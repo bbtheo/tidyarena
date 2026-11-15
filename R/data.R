@@ -3,8 +3,8 @@
 #' The tables are generated from a fixed seed with fixed random number
 #' generators, so every machine runs on the same data. Generation runs in a
 #' separate R process, so the memory it takes is released when it is done.
-#' Tables are cached as uncompressed `.rds` files and reused when their
-#' fingerprint matches.
+#' Tables are cached as uncompressed Parquet files, which load faster than
+#' `.rds` files, and reused when their fingerprint matches.
 #'
 #' `df` has these columns:
 #' * `id`: row number, integer.
@@ -32,8 +32,8 @@ arena_data <- function(n, dir = arena_cache_dir()) {
   check_size(n)
   dir <- file.path(dir, paste0("gen", generator_version), format_n(n))
   paths <- list(
-    df = file.path(dir, "df.rds"),
-    lookup = file.path(dir, "lookup.rds"),
+    df = file.path(dir, "df.parquet"),
+    lookup = file.path(dir, "lookup.parquet"),
     fingerprint = file.path(dir, "fingerprint.rds")
   )
   if (all(file.exists(unlist(paths)))) {
@@ -45,6 +45,8 @@ arena_data <- function(n, dir = arena_cache_dir()) {
   }
 
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  # Tables cached as .rds by earlier versions.
+  unlink(file.path(dir, c("df.rds", "lookup.rds")))
   generate <- generate_tables
   environment(generate) <- globalenv()
   fingerprint <- callr::r(
@@ -57,7 +59,7 @@ arena_data <- function(n, dir = arena_cache_dir()) {
 generator_version <- 1L
 generator_seed <- 20261114L
 
-# Runs in a fresh R process: base R only.
+# Runs in a fresh R process: base R, and nanoparquet to write the tables.
 generate_tables <- function(n, seed, paths) {
   set.seed(
     seed,
@@ -101,8 +103,8 @@ generate_tables <- function(n, seed, paths) {
     n_na_z = sum(is.na(df$z)),
     sum_skew = sum(as.double(df$g_skew))
   )
-  saveRDS(df, paths$df, compress = FALSE)
-  saveRDS(lookup, paths$lookup, compress = FALSE)
+  nanoparquet::write_parquet(df, paths$df, compression = "uncompressed")
+  nanoparquet::write_parquet(lookup, paths$lookup, compression = "uncompressed")
   saveRDS(fingerprint, paths$fingerprint)
   fingerprint
 }
@@ -111,6 +113,12 @@ generate_tables <- function(n, seed, paths) {
 # double columns and 2 character columns (pointers into the string cache).
 data_bytes <- function(n) {
   n * (4 * 4 + 2 * 8 + 2 * 8) * 1.05
+}
+
+# Bytes the cached tables take on disk: Parquet stores the repeated
+# strings once per page.
+data_disk_bytes <- function(n) {
+  data_bytes(n) * 0.7
 }
 
 #' Where tidyarena keeps its files
@@ -138,4 +146,10 @@ arena_cache_clear <- function() {
 format_n <- function(n) {
   out <- format(as.double(n), scientific = TRUE)
   sub("e\\+0?", "e", sub("\\.0+e", "e", out))
+}
+
+# Where the worker loads nanoparquet from. It is tidyarena's own
+# dependency, so it may not be in the library paths the backends run with.
+reader_lib <- function() {
+  dirname(find.package("nanoparquet"))
 }

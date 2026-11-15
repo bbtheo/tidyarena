@@ -20,6 +20,7 @@ Imports:
     callr,
     cli (>= 3.3.0),
     jsonlite,
+    nanoparquet,
     processx,
     ps,
     rlang,
