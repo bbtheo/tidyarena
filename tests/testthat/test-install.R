@@ -142,3 +142,11 @@ test_that("offer_installs() returns the library to prefer", {
   local_mocked_bindings(ask_yes_no = function(...) FALSE)
   expect_equal(offer_installs(NULL, "ask", .libPaths()), "session")
 })
+
+test_that("arena_install() of only non-CRAN backends just gives the hint", {
+  skip_if_not_installed("pak")
+  local_mocked_bindings(packages_installed = function(packages, lib) rep(FALSE, length(packages)))
+  messages <- capture_messages(arena_install("tidypolars", lib = withr::local_tempdir()))
+  expect_match(paste(messages, collapse = ""), "not on CRAN")
+  expect_no_match(paste(messages, collapse = ""), "up to date")
+})

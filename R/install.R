@@ -58,6 +58,9 @@ arena_install <- function(
   backends <- check_ids(backends %||% names(defs)[on_cran], names(defs), "backends")
   inform_not_on_cran(backends[!on_cran[backends]], lib)
   backends <- backends[on_cran[backends]]
+  if (length(backends) == 0) {
+    return(invisible(lib))
+  }
   packages <- unique(unlist(lapply(defs[backends], `[[`, "packages")))
   repos <- c(CRAN = ppm_url(snapshot, binary_target()))
 
