@@ -15,7 +15,8 @@
 #'
 #' @param tier One of `"quick"`, `"standard"` or `"full"`.
 #' @param backends Backend ids to run, see [arena_backends()]. Defaults to
-#'   every available backend. The anchor backend, dplyr, is always included.
+#'   every available backend, except those left out with [arena_config()].
+#'   The anchor backend, dplyr, is always included.
 #' @param tasks Task ids to run, see [arena_tasks()]. Defaults to all.
 #' @param sizes Row counts. Defaults to the tier's sizes. Runs with other
 #'   sizes are not comparable with other machines.
@@ -43,7 +44,7 @@ arena_plan <- function(
 
   all_backends <- arena_backends(libpath)
   backends <- check_ids(
-    backends %||% all_backends$backend[all_backends$available],
+    backends %||% default_backends(all_backends),
     all_backends$backend,
     "backends"
   )

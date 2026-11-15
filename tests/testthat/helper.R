@@ -29,3 +29,4 @@ small_tables <- function() {
   env$lookup <- lookup
   env
 }
+

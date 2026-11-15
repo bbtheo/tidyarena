@@ -19,7 +19,8 @@ arena_run(
 \item{tier}{One of \code{"quick"}, \code{"standard"} or \code{"full"}.}
 
 \item{backends}{Backend ids to run, see \code{\link[=arena_backends]{arena_backends()}}. Defaults to
-every available backend. The anchor backend, dplyr, is always included.}
+every available backend, except those left out with \code{\link[=arena_config]{arena_config()}}.
+The anchor backend, dplyr, is always included.}
 
 \item{tasks}{Task ids to run, see \code{\link[=arena_tasks]{arena_tasks()}}. Defaults to all.}
 
@@ -35,7 +36,10 @@ the session's library paths, followed by \code{\link[=arena_lib]{arena_lib()}} w
 \item{install}{What to do about missing and outdated backends before the
 run: \code{"ask"} (only in interactive sessions), \code{"missing"} to install
 missing backends, \code{"update"} to install missing backends and update
-outdated ones, or \code{"never"}.}
+outdated ones, or \code{"never"}. Installing follows \code{\link[=arena_config]{arena_config()}}:
+backends left out there are not installed, \code{only_cran} limits where
+packages come from, and \code{build} decides whether packages without a
+binary are compiled.}
 
 \item{dir}{Directory for the results. Defaults to a new directory under
 \code{\link[tools:R_user_dir]{tools::R_user_dir()}}. Pass the directory of an earlier run to resume

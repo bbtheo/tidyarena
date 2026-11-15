@@ -74,7 +74,7 @@ arena_check_task <- function(
   tasks <- intersect(c(task, paste0(task, "_by")), all_tasks$task)
   all_backends <- arena_backends(libpath)
   backends <- check_ids(
-    backends %||% all_backends$backend[all_backends$available],
+    backends %||% default_backends(all_backends),
     all_backends$backend,
     "backends"
   )

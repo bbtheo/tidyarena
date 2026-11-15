@@ -47,7 +47,8 @@ fields:
 | `fallback_pattern` | none | A regular expression matching the message the backend gives when it hands work back to dplyr. Such cells count as fallbacks, not as wins. |
 | `gpu` | `FALSE` | Whether it runs on a GPU. |
 | `requires` | none | What it needs from the machine: `os`, `arch`, `r`, `gpu = "nvidia"`, `compute_capability`, `cuda`. Checked before anything is installed. |
-| `install_hint` | none | For packages not on CRAN: how to install them, as text or a function returning text. Backends on CRAN are installed from Posit Package Manager. |
+| `install` | none | For backends that need more than CRAN: `repos`, extra repositories such as R-universe, and `env`, environment variables for building from source (for example to download a prebuilt library). See `tidypolars.R` and `arrow.R`. Ignored with `arena_config(only_cran = TRUE)`, except that backends with `repos` are then not installed. |
+| `install_hint` | none | For backends tidyarena can't install at all: how to install them, as text or a function returning text. Backends on CRAN are installed from Posit Package Manager. |
 | `diagnose` | none | A self-contained function that checks the backend's own dependencies, run before each run. See `cuplyr.R`. |
 
 Backends that can spill to disk should set their memory limit from

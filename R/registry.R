@@ -34,6 +34,7 @@ backend_fields <- list(
     "fallback_pattern",
     "requires",
     "diagnose",
+    "install",
     "install_hint"
   )
 )

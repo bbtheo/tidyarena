@@ -18,6 +18,7 @@
       i Posit Package Manager has no binaries for "x86_64-pc-linux-gnu-somedistro".
       i Leave out the backends that need them, or compile:
         `build = "capped"` compiles with a memory limit. This can take a long time.
+        `arena_config(build = "capped")` makes that the default.
 
 # offer_installs() only reports when not interactive
 

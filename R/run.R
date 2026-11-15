@@ -51,7 +51,10 @@
 #' @param install What to do about missing and outdated backends before the
 #'   run: `"ask"` (only in interactive sessions), `"missing"` to install
 #'   missing backends, `"update"` to install missing backends and update
-#'   outdated ones, or `"never"`.
+#'   outdated ones, or `"never"`. Installing follows [arena_config()]:
+#'   backends left out there are not installed, `only_cran` limits where
+#'   packages come from, and `build` decides whether packages without a
+#'   binary are compiled.
 #' @param dir Directory for the results. Defaults to a new directory under
 #'   [tools::R_user_dir()]. Pass the directory of an earlier run to resume
 #'   it.

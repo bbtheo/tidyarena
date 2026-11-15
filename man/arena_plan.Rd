@@ -17,7 +17,8 @@ arena_plan(
 \item{tier}{One of \code{"quick"}, \code{"standard"} or \code{"full"}.}
 
 \item{backends}{Backend ids to run, see \code{\link[=arena_backends]{arena_backends()}}. Defaults to
-every available backend. The anchor backend, dplyr, is always included.}
+every available backend, except those left out with \code{\link[=arena_config]{arena_config()}}.
+The anchor backend, dplyr, is always included.}
 
 \item{tasks}{Task ids to run, see \code{\link[=arena_tasks]{arena_tasks()}}. Defaults to all.}
 

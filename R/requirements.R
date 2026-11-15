@@ -85,14 +85,22 @@ os_label <- function(os) {
   switch(os, linux = "Linux", darwin = "macOS", windows = "Windows", os)
 }
 
-# How to install a backend that isn't on CRAN: why it can't run here, if it
-# can't, and otherwise its install hint.
+# How to install a backend tidyarena can't install: why it can't run here,
+# if it can't, why it isn't allowed, or its install hint.
 install_hint <- function(backend) {
   unmet <- unmet_platform(backend)
   if (length(unmet) > 0) {
     return(sprintf("{.val %s} %s.", backend, cli_escape(paste(unmet, collapse = "; "))))
   }
-  hint <- backend_defs()[[backend]]$install_hint
+  def <- backend_defs()[[backend]]
+  if (is.null(def$install_hint) && !is.null(def$install$repos)) {
+    urls <- paste0("{.url ", def$install$repos, "}", collapse = ", ")
+    return(paste0(
+      "{.val ", backend, "} comes from ", urls, ", not CRAN, and only CRAN is allowed. ",
+      "Allow it with {.code arena_config(only_cran = FALSE)}."
+    ))
+  }
+  hint <- def$install_hint
   if (is.function(hint)) hint() else hint
 }
 

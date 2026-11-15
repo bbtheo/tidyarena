@@ -22,21 +22,31 @@
 #' changed. Because tidyarena's library comes first in [arena_run()], the
 #' newer versions are the ones benchmarked.
 #'
-#' Backends that are not on CRAN (cuplyr, tidypolars) can't be installed this
-#' way; `arena_install()` says where to get them.
+#' tidypolars is not on CRAN; it is installed from R-universe, together with
+#' polars, unless `only_cran = TRUE`. Some packages download a prebuilt
+#' library when they are compiled (arrow's C++ library, polars' Rust
+#' library), which saves building it. cuplyr needs RAPIDS and CUDA and can't
+#' be installed this way; `arena_install()` says how.
+#'
+#' The defaults for `build` and `only_cran`, and the backends to leave out,
+#' are set with [arena_config()].
 #'
 #' @param backends Backend ids, see [arena_backends()]. Defaults to all
-#'   backends on CRAN.
+#'   backends tidyarena can install, except those left out with
+#'   [arena_config()].
 #' @param lib Library to install into. Defaults to [arena_lib()].
 #' @param snapshot Package Manager snapshot: `"latest"`, or a date such as
 #'   `"2026-03-01"` to install the versions that were current then. With a
 #'   date, packages in your own library are not used: everything is installed
-#'   into `lib`.
+#'   into `lib`. R-universe has no snapshots: packages from there are always
+#'   the latest.
 #' @param build What to do when a package has no binary: `"never"` to stop
 #'   and list the packages, `"capped"` to compile them with the limits
-#'   described above.
+#'   described above. Defaults to the setting in [arena_config()].
 #' @param update If `TRUE`, also install newer versions of backend packages
 #'   that are already installed.
+#' @param only_cran If `TRUE`, only install from CRAN. Defaults to the
+#'   setting in [arena_config()].
 #' @returns The library path, invisibly.
 #' @export
 #' @examples
@@ -48,21 +58,31 @@ arena_install <- function(
   backends = NULL,
   lib = arena_lib(),
   snapshot = "latest",
-  build = c("never", "capped"),
-  update = FALSE
+  build = NULL,
+  update = FALSE,
+  only_cran = NULL
 ) {
   rlang::check_installed("pak", reason = "to install backends.")
-  build <- rlang::arg_match(build)
+  config <- read_config()
+  build <- build %||% config$build
+  build <- rlang::arg_match(build, c("never", "capped"))
+  only_cran <- only_cran %||% config$only_cran
+  rlang::check_bool(only_cran)
   defs <- backend_defs()
-  on_cran <- vapply(defs, function(x) is.null(x$install_hint), logical(1))
-  backends <- check_ids(backends %||% names(defs)[on_cran], names(defs), "backends")
-  inform_not_on_cran(backends[!on_cran[backends]], lib)
-  backends <- backends[on_cran[backends]]
+  ok <- vapply(names(defs), installable, logical(1), only_cran = only_cran)
+  backends <- check_ids(
+    backends %||% setdiff(names(defs)[ok], config$exclude),
+    names(defs),
+    "backends"
+  )
+  inform_not_installable(backends[!ok[backends]], lib)
+  backends <- backends[ok[backends]]
   if (length(backends) == 0) {
     return(invisible(lib))
   }
   packages <- unique(unlist(lapply(defs[backends], `[[`, "packages")))
-  repos <- c(CRAN = ppm_url(snapshot, binary_target()))
+  sources <- install_sources(backends, snapshot, only_cran)
+  repos <- sources$repos
 
   dir.create(lib, recursive = TRUE, showWarnings = FALSE)
   # With a dated snapshot, packages from the user's library would defeat the
@@ -77,13 +97,13 @@ arena_install <- function(
     return(invisible(lib))
   }
 
-  cli::cli_inform("Resolving {.pkg {todo}} from {.url {repos[[1]]}}.")
+  cli::cli_inform("Resolving {.pkg {todo}} from {.url {repos}}.")
   needs_build <- packages_to_build(todo, lib, repos)
   if (length(needs_build) > 0 && build == "never") {
     abort_needs_build(needs_build)
   }
 
-  install_packages(todo, lib, repos, needs_build)
+  install_packages(todo, lib, repos, needs_build, sources$env)
   write_install_record(lib, repos, snapshot, todo)
   cli::cli_inform("Installed {.pkg {todo}} in {.path {lib}}.")
   invisible(lib)
@@ -103,24 +123,62 @@ abort_needs_build <- function(needs_build, call = rlang::caller_env()) {
         "Posit Package Manager has no binaries for {.val {platform}}."
       },
       i = "Leave out the backends that need {them}, or compile:",
-      " " = "{.code build = \"capped\"} compiles with a memory limit. This can take a long time."
+      " " = "{.code build = \"capped\"} compiles with a memory limit. This can take a long time.",
+      " " = "{.code arena_config(build = \"capped\")} makes that the default."
     ),
     class = "tidyarena_needs_build",
     call = call
   )
 }
 
-inform_not_on_cran <- function(backends, lib) {
+inform_not_installable <- function(backends, lib) {
   defs <- backend_defs()
   for (backend in backends) {
     if (!all(packages_installed(defs[[backend]]$packages, c(lib, .libPaths())))) {
       hint <- install_hint(backend)
       cli::cli_inform(c(
-        "!" = "{.val {backend}} is not on CRAN, so it can't be installed from Package Manager.",
+        "!" = "Can't install {.val {backend}}.",
         stats::setNames(hint, rep("i", length(hint)))
       ))
     }
   }
+}
+
+# How a backend is installed: "cran" from Package Manager, "repos" from the
+# extra repositories in its `install` field, or "manual" when tidyarena
+# can't install it and its install hint says how.
+install_route <- function(backend) {
+  def <- backend_defs()[[backend]]
+  if (!is.null(def$install_hint)) {
+    "manual"
+  } else if (!is.null(def$install$repos)) {
+    "repos"
+  } else {
+    "cran"
+  }
+}
+
+installable <- function(backend, only_cran = read_config()$only_cran) {
+  route <- install_route(backend)
+  route == "cran" || (route == "repos" && !only_cran)
+}
+
+# Repositories, extra ones first, and build environment variables for
+# installing `backends`. With `only_cran`, Package Manager only and no
+# variables: those ask packages to download prebuilt libraries.
+install_sources <- function(backends, snapshot = "latest", only_cran = FALSE) {
+  cran <- c(CRAN = ppm_url(snapshot, binary_target()))
+  if (only_cran) {
+    return(list(repos = cran, env = character()))
+  }
+  defs <- backend_defs()[backends]
+  field <- function(name) do.call(c, unname(lapply(defs, function(d) d$install[[name]])))
+  repos <- field("repos")
+  env <- field("env")
+  list(
+    repos = c(repos[!duplicated(names(repos))], cran),
+    env = env[!duplicated(names(env))] %||% character()
+  )
 }
 
 # Installed packages with a newer version in `repos`: a data frame with
@@ -201,7 +259,8 @@ write_install_record <- function(lib, repos, snapshot, packages) {
   old <- if (file.exists(path)) jsonlite::read_json(path) else list()
   record <- list(
     time = format_time(Sys.time()),
-    repo = unname(repos[[1]]),
+    repo = unname(repos[["CRAN"]] %||% repos[[1]]),
+    repos = as.list(repos),
     snapshot = snapshot,
     packages = as.list(packages)
   )
@@ -230,9 +289,8 @@ packages_to_build <- function(packages, lib, repos) {
 # Runs pak in a separate R process. When something has to be compiled, the
 # process gets a memory limit (a cgroup on Linux) and a number of make jobs
 # that fits in free memory.
-install_packages <- function(packages, lib, repos, needs_build) {
+install_packages <- function(packages, lib, repos, needs_build, env = character()) {
   # pak itself comes from the session's library; it installs into `lib`.
-  env <- character()
   budget <- default_budget()
   if (length(needs_build) > 0) {
     jobs <- build_jobs(budget)
@@ -336,7 +394,7 @@ offer_installs <- function(backends, install, libpath) {
   if (length(status$elsewhere) > 0) {
     hints <- unlist(lapply(status$elsewhere, install_hint))
     cli::cli_inform(c(
-      i = "Not installed, and not on CRAN: {.val {status$elsewhere}}.",
+      i = "Not installed, and tidyarena can't install: {.val {status$elsewhere}}.",
       stats::setNames(hints, rep(" ", length(hints)))
     ))
   }
@@ -382,31 +440,34 @@ offer_installs <- function(backends, install, libpath) {
 }
 
 # Missing and outdated backends among `backends` (default: all that can run
-# here). Backends not on CRAN are reported apart, in `elsewhere`.
+# here, except those left out with arena_config()). Backends tidyarena can't
+# install are reported apart, in `elsewhere`, when they were named.
 backend_status <- function(backends, libpath) {
   defs <- backend_defs()
+  config <- read_config()
   platform <- platform_info()
   runnable <- Filter(function(b) length(unmet_platform(b, platform)) == 0, names(defs))
-  candidates <- union(anchor_backend, backends %||% runnable)
+  candidates <- union(anchor_backend, backends %||% setdiff(runnable, config$exclude))
   installed <- vapply(
     candidates,
     function(b) all(packages_installed(defs[[b]]$packages, libpath)),
     logical(1)
   )
-  on_cran <- vapply(candidates, function(b) is.null(defs[[b]]$install_hint), logical(1))
-  present <- candidates[installed]
+  ok <- vapply(candidates, installable, logical(1), only_cran = config$only_cran)
+  present <- candidates[installed & ok]
   packages <- unique(unlist(lapply(defs[present], `[[`, "packages")))
-  outdated <- outdated_packages(packages, libpath, c(CRAN = ppm_url("latest", binary_target())))
+  repos <- install_sources(present, only_cran = config$only_cran)$repos
+  outdated <- outdated_packages(packages, libpath, repos)
   uses_outdated <- vapply(
     present,
     function(b) any(defs[[b]]$packages %in% outdated$package),
     logical(1)
   )
   list(
-    missing = candidates[!installed & on_cran],
-    elsewhere = candidates[!installed & !on_cran & candidates %in% (backends %||% character())],
+    missing = candidates[!installed & ok],
+    elsewhere = candidates[!installed & !ok & candidates %in% (backends %||% character())],
     outdated = outdated,
-    outdated_backends = present[uses_outdated & on_cran[installed]]
+    outdated_backends = present[uses_outdated]
   )
 }
 
@@ -419,7 +480,8 @@ install_backends <- function(backends, update = FALSE) {
       tidyarena_needs_build = function(e) {
         cli::cli_inform(c(
           "!" = "Skipping {.val {backend}}: it would have to be compiled.",
-          i = "Use {.code arena_install({.str {backend}}, build = \"capped\")} to compile it with a memory limit."
+          i = "Use {.code arena_install({.str {backend}}, build = \"capped\")} to compile it with a memory limit,",
+          " " = "or {.code arena_config(build = \"capped\")} to always do so."
         ))
       }
     )

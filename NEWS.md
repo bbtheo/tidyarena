@@ -66,3 +66,13 @@
   them in 0.3 s instead of 1.4 s, and they take about half the disk space.
   The worker unloads nanoparquet before the backend's setup. Existing
   `.rds` caches are replaced the next time a size is used.
+
+* `arena_config()` saves settings for installing and running: `only_cran`
+  to install only from CRAN, `exclude` to leave backends out of installs and
+  runs, and `build` to choose whether packages without a binary are
+  compiled. `arena_install()` gains `only_cran` and takes its defaults from
+  there.
+
+* tidypolars is installed from R-universe, with polars' prebuilt Rust
+  library, and arrow, where it has to be compiled, uses Apache's prebuilt
+  C++ library. Backends declare such sources in a new `install` field.
