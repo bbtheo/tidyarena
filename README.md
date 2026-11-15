@@ -32,8 +32,23 @@ You can install the development version of tidyarena from GitHub with:
 pak::pak("bbtheo/tidyarena")
 ```
 
-Install the backends you want to compare as well. Backends that are not
-installed are skipped.
+Then install the backends you want to compare. `arena_install()` puts
+them in a library of their own, so they never mix with your packages:
+
+``` r
+tidyarena::arena_install(c("dtplyr", "duckplyr", "dbplyr_duckdb", "arrow"))
+```
+
+Packages come as binaries from Posit Package Manager, which builds them
+for Windows, macOS and the common Linux distributions (Ubuntu, Debian,
+RHEL/Rocky, openSUSE and others). On other distributions some packages
+would have to be compiled; `arena_install()` then stops and lists them.
+Compiling duckdb or arrow takes a long time and several GB of memory per
+compile job. If you want to do it anyway, `build = "capped"` compiles
+them with a number of jobs that fits in free memory and, on Linux with
+systemd, inside a memory limit with swap disabled.
+
+Backends that are not installed are skipped.
 
 ## Usage
 

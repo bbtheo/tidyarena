@@ -4,11 +4,12 @@
 \alias{arena_backends}
 \title{The backends}
 \usage{
-arena_backends(libpath = .libPaths())
+arena_backends(libpath = default_libpath())
 }
 \arguments{
 \item{libpath}{Library paths to look for the backend packages in. Defaults
-to the library paths of the current session.}
+to \code{\link[=arena_lib]{arena_lib()}}, when it exists, followed by the session's library
+paths.}
 }
 \value{
 A tibble with one row per backend:

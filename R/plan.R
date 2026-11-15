@@ -21,7 +21,8 @@
 #'   sizes are not comparable with other machines.
 #' @param budget Most memory one task may use, in bytes. Defaults to 70% of
 #'   available memory, leaving at least 2 GB free.
-#' @param libpath Library paths the backends are loaded from.
+#' @param libpath Library paths the backends are loaded from. Defaults to
+#'   [arena_lib()], when it exists, followed by the session's library paths.
 #' @returns A tibble with one row per cell: `size`, `task`, `backend`,
 #'   `est_peak` (bytes), `action` (`"run"` or `"skip"`) and `reason`.
 #' @export
@@ -33,7 +34,7 @@ arena_plan <- function(
   tasks = NULL,
   sizes = NULL,
   budget = NULL,
-  libpath = .libPaths()
+  libpath = default_libpath()
 ) {
   tier <- rlang::arg_match(tier)
   settings <- tier_settings(tier)

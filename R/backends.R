@@ -10,7 +10,8 @@
 #' spill set their memory limit from `.budget_mb`.
 #'
 #' @param libpath Library paths to look for the backend packages in. Defaults
-#'   to the library paths of the current session.
+#'   to [arena_lib()], when it exists, followed by the session's library
+#'   paths.
 #' @returns A tibble with one row per backend:
 #'   * `backend`: backend id.
 #'   * `packages`: packages the backend needs.
@@ -20,7 +21,7 @@
 #' @export
 #' @examples
 #' arena_backends()
-arena_backends <- function(libpath = .libPaths()) {
+arena_backends <- function(libpath = default_libpath()) {
   defs <- backend_defs()
   gpu <- vapply(defs, `[[`, logical(1), "gpu")
   installed <- vapply(

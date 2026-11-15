@@ -5,3 +5,8 @@
   memory, coverage and correctness with a snapshot of the machine
   (`arena_env()`). `arena_plan()` shows what a run would do, `arena_read()`
   reads the results and `arena_report()` summarises them.
+
+* `arena_install()` installs backends into tidyarena's own library
+  (`arena_lib()`) as binaries from Posit Package Manager, optionally from a
+  dated snapshot. It does not compile packages unless asked to with
+  `build = "capped"`, which limits compile jobs and memory.

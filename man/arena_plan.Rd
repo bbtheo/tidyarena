@@ -10,7 +10,7 @@ arena_plan(
   tasks = NULL,
   sizes = NULL,
   budget = NULL,
-  libpath = .libPaths()
+  libpath = default_libpath()
 )
 }
 \arguments{
@@ -27,7 +27,8 @@ sizes are not comparable with other machines.}
 \item{budget}{Most memory one task may use, in bytes. Defaults to 70\% of
 available memory, leaving at least 2 GB free.}
 
-\item{libpath}{Library paths the backends are loaded from.}
+\item{libpath}{Library paths the backends are loaded from. Defaults to
+\code{\link[=arena_lib]{arena_lib()}}, when it exists, followed by the session's library paths.}
 }
 \value{
 A tibble with one row per cell: \code{size}, \code{task}, \code{backend},

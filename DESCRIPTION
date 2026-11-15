@@ -37,6 +37,7 @@ Suggests:
     dtplyr,
     duckdb,
     duckplyr,
+    pak,
     polars,
     testthat (>= 3.0.0),
     tidypolars,

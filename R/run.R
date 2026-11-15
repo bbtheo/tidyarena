@@ -39,7 +39,7 @@ arena_run <- function(
   tasks = NULL,
   sizes = NULL,
   budget = NULL,
-  libpath = .libPaths(),
+  libpath = default_libpath(),
   dir = NULL
 ) {
   tier <- rlang::arg_match(tier)
