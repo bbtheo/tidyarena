@@ -39,6 +39,14 @@
 #' one in your library; it then fails at setup, and the error is in the
 #' results.
 #'
+#' Before the first task, every backend is loaded once on a tiny table, and
+#' the version requirements of its packages are checked against the versions
+#' the run would use. If a backend doesn't load because your library has too
+#' old a dependency, `arena_run()` asks whether to use tidyarena's newer
+#' packages for the run instead, installing them if needed. Outside an
+#' interactive session it does so without asking. A backend that still
+#' doesn't load is skipped, and the reason is in the results.
+#'
 #' @inheritParams arena_plan
 #' @param install What to do about missing and outdated backends before the
 #'   run: `"ask"` (only in interactive sessions), `"missing"` to install
@@ -66,12 +74,13 @@ arena_run <- function(
 ) {
   tier <- rlang::arg_match(tier)
   install <- rlang::arg_match(install)
+  libpath_given <- !missing(libpath)
   resuming <- !is.null(dir) && file.exists(file.path(dir, "run.json"))
   if (resuming) {
     run <- read_run_json(dir)
     check_resume(run, tier, backends, tasks, sizes)
     prefer <- run$prefer %||% "session"
-    if (missing(libpath)) {
+    if (!libpath_given) {
       libpath <- default_libpath(prefer)
     }
     plan <- arena_plan(
@@ -84,7 +93,7 @@ arena_run <- function(
     )
   } else {
     prefer <- "session"
-    if (missing(libpath)) {
+    if (!libpath_given) {
       prefer <- offer_installs(backends, install, default_libpath())
       # Computed after installing, which may have created tidyarena's library.
       libpath <- default_libpath(prefer)
@@ -92,6 +101,18 @@ arena_run <- function(
       offer_installs(backends, install, libpath)
     }
     plan <- arena_plan(tier, backends, tasks, sizes, budget, libpath)
+    checked <- preflight(
+      unique(plan$backend[plan$action == "run"]),
+      prefer,
+      libpath_fixed = libpath_given,
+      libpath = libpath
+    )
+    if (!identical(checked$prefer, prefer)) {
+      prefer <- checked$prefer
+      libpath <- checked$libpath
+      plan <- arena_plan(tier, backends, tasks, sizes, budget, libpath)
+    }
+    plan <- skip_backends(plan, checked$skip)
     check_disk(plan)
     dir <- dir %||% new_run_dir()
     run <- new_run(dir, plan, prefer)
@@ -169,6 +190,13 @@ arena_run <- function(
   results <- arena_read(dir)
   cli::cli_inform("Results are in {.path {dir}}.")
   invisible(results)
+}
+
+skip_backends <- function(plan, skip) {
+  rows <- plan$backend %in% names(skip) & plan$action == "run"
+  plan$action[rows] <- "skip"
+  plan$reason[rows] <- unname(skip[plan$backend[rows]])
+  plan
 }
 
 failure_statuses <- c(

@@ -88,6 +88,14 @@ first and tidyarena's library only supplies backends you don't have. A
 backend installed by tidyarena can then need a newer dependency than the
 one in your library; it then fails at setup, and the error is in the
 results.
+
+Before the first task, every backend is loaded once on a tiny table, and
+the version requirements of its packages are checked against the versions
+the run would use. If a backend doesn't load because your library has too
+old a dependency, \code{arena_run()} asks whether to use tidyarena's newer
+packages for the run instead, installing them if needed. Outside an
+interactive session it does so without asking. A backend that still
+doesn't load is skipped, and the reason is in the results.
 }
 
 \examples{

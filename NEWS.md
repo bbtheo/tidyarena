@@ -32,3 +32,11 @@
   after updating, tidyarena's library comes first; otherwise your library
   comes first and tidyarena's only supplies missing backends. The choice is
   stored in `run.json` and kept when a run is resumed.
+
+* Before the first task, `arena_run()` loads every backend once on a tiny
+  table and checks the version requirements of its packages against the
+  versions the run would use. If a backend doesn't load because your library
+  has too old a dependency, it asks whether to use tidyarena's newer
+  packages instead (installing them if needed); outside an interactive
+  session it does so without asking. Backends that still don't load are
+  skipped, with the reason in the results.
