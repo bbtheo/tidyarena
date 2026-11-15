@@ -17,8 +17,11 @@ A tibble with one row per backend:
 \item \code{backend}: backend id.
 \item \code{packages}: packages the backend needs.
 \item \code{gpu}: whether the backend runs on an NVIDIA GPU.
-\item \code{available}: whether all \code{packages} are installed in \code{libpath} (and,
-for GPU backends, an NVIDIA GPU was found).
+\item \code{available}: whether all \code{packages} are installed in \code{libpath} and
+the machine meets the backend's requirements.
+\item \code{reason}: why the backend is not available. For GPU backends this
+says which requirement is unmet, for example the GPU's compute
+capability or the CUDA version the driver supports.
 }
 }
 \description{

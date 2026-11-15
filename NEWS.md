@@ -40,3 +40,14 @@
   packages instead (installing them if needed); outside an interactive
   session it does so without asking. Backends that still don't load are
   skipped, with the reason in the results.
+
+* GPU backends declare what they need from the machine: an NVIDIA GPU, its
+  compute capability, the CUDA version the driver supports, OS,
+  architecture and R version (for cuplyr, from its README). These are
+  checked with nvidia-smi before anything is installed, and
+  `arena_backends()` and `arena_plan()` say which one is unmet. When a
+  machine qualifies but cuplyr is not installed, tidyarena points to
+  cuplyr's `install.sh` and says whether pixi, conda or a CUDA toolkit is
+  there; it never builds cuplyr itself. Before a run, cuplyr's own
+  `check_deps()` runs too, its results are saved in `run.json`, and its
+  failed checks explain a cuplyr that does not load.

@@ -36,6 +36,12 @@ arena_report <- function(x) {
     cli::cli_bullets(notes)
   }
 
+  diagnosed <- diagnostic_lines(x$run$diagnostics)
+  if (length(diagnosed) > 0) {
+    cli::cli_alert_warning("Backends that did not load, and what their own checks found:")
+    cli::cli_bullets(diagnosed)
+  }
+
   cli::cli_h2("Fastest backend per task")
   cli::cli_text(
     "At the largest size each task ran on. Speed-up is dplyr's time divided by the backend's."
@@ -225,4 +231,17 @@ format_bytes <- function(x) {
   units <- c("B", "KB", "MB", "GB", "TB")
   i <- max(1, min(length(units), floor(log(max(x, 1), 1024)) + 1))
   sprintf("%.1f %s", x / 1024^(i - 1), units[[i]])
+}
+
+# One bullet per failed check in the backends' own diagnostics, for the
+# backends that didn't load.
+diagnostic_lines <- function(diagnostics) {
+  lines <- unlist(lapply(names(diagnostics), function(backend) {
+    if (isTRUE(diagnostics[[backend]]$loaded)) {
+      return(NULL)
+    }
+    checks <- failed_checks(diagnostics[[backend]])
+    if (length(checks) > 0) paste0(backend, ": ", checks)
+  }))
+  stats::setNames(cli_escape(lines), rep("*", length(lines)))
 }

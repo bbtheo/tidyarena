@@ -66,16 +66,16 @@ arena_plan <- function(
     r_baseline_bytes + data_bytes(cells$size) * (1 + backend_factor * task_factor)
   )
 
-  available <- all_backends$available[match(cells$backend, all_backends$backend)]
+  row <- match(cells$backend, all_backends$backend)
   cells$action <- "run"
   cells$reason <- NA_character_
-  skip <- !available
-  cells$reason[skip] <- "not installed"
+  skip <- !all_backends$available[row]
+  cells$reason[skip] <- all_backends$reason[row][skip]
   over <- !skip & cells$est_peak > budget
   cells$reason[over] <- "over memory budget"
   gpu <- defs[cells$backend] |> vapply(`[[`, logical(1), "gpu") |> unname()
   if (any(gpu)) {
-    vram <- env_gpu()[[1]]$memory %||% 0
+    vram <- gpu_info()[[1]]$memory %||% 0
     gpu_peak <- data_bytes(cells$size) * (1 + backend_factor * task_factor)
     over_gpu <- !skip & !over & gpu & gpu_peak > 0.8 * vram
     cells$reason[over_gpu] <- "over GPU memory"

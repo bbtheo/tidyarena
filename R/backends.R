@@ -16,8 +16,11 @@
 #'   * `backend`: backend id.
 #'   * `packages`: packages the backend needs.
 #'   * `gpu`: whether the backend runs on an NVIDIA GPU.
-#'   * `available`: whether all `packages` are installed in `libpath` (and,
-#'     for GPU backends, an NVIDIA GPU was found).
+#'   * `available`: whether all `packages` are installed in `libpath` and
+#'     the machine meets the backend's requirements.
+#'   * `reason`: why the backend is not available. For GPU backends this
+#'     says which requirement is unmet, for example the GPU's compute
+#'     capability or the CUDA version the driver supports.
 #' @export
 #' @examples
 #' arena_backends()
@@ -29,12 +32,19 @@ arena_backends <- function(libpath = default_libpath()) {
     function(x) all(packages_installed(x$packages, libpath)),
     logical(1)
   )
-  has_gpu <- nzchar(Sys.which("nvidia-smi"))
+  platform <- platform_info()
+  unmet <- vapply(
+    names(defs),
+    function(b) paste(unmet_platform(b, platform), collapse = "; "),
+    character(1)
+  )
+  reason <- ifelse(nzchar(unmet), unmet, ifelse(installed, NA_character_, "not installed"))
   tibble::tibble(
     backend = names(defs),
     packages = unname(lapply(defs, `[[`, "packages")),
     gpu = unname(gpu),
-    available = unname(installed & (!gpu | has_gpu))
+    available = unname(is.na(reason)),
+    reason = unname(reason)
   )
 }
 
@@ -134,7 +144,17 @@ backend_defs <- function() {
     cuplyr = list(
       packages = c("dplyr", "cuplyr"),
       gpu = TRUE,
-      install_hint = "Install cuplyr from GitHub: {.url https://github.com/bbtheo/cuplyr}.",
+      install_hint = cuplyr_install_hint,
+      # From cuplyr's README.
+      requires = list(
+        os = "linux",
+        arch = "x86_64",
+        r = "4.3.0",
+        gpu = "nvidia",
+        compute_capability = "7.0",
+        cuda = "12.2"
+      ),
+      diagnose = cuplyr_diagnose,
       mem_factor = 2,
       setup = c(
         "library(dplyr)",

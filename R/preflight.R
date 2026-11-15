@@ -163,15 +163,22 @@ describe_unmet <- function(unmet) {
 # Runs both checks on the backends that are about to run and settles the
 # failures: by switching to tidyarena's newer packages (asking first in
 # interactive sessions, by default otherwise) or by skipping the backend.
-# Returns `prefer` and `skip`, a named character vector of reasons.
+# Returns `prefer`, `skip` (a named character vector of reasons), `libpath`
+# and `diagnostics`, the results of the backends' own diagnostics.
 preflight <- function(backends, prefer, libpath_fixed, libpath) {
   skip <- character()
   if (length(backends) == 0) {
-    return(list(prefer = prefer, skip = skip, libpath = libpath))
+    return(list(prefer = prefer, skip = skip, libpath = libpath, diagnostics = list()))
   }
   cli::cli_inform("Checking that {.val {backends}} {?loads/load}.")
   results <- load_test(backends, libpath)
   failed <- names(results)[!vapply(results, `[[`, logical(1), "ok")]
+  diagnostics <- lapply(backends, diagnose_backend, libpath = libpath)
+  names(diagnostics) <- backends
+  diagnostics <- Filter(Negate(is.null), diagnostics)
+  for (backend in names(diagnostics)) {
+    diagnostics[[backend]]$loaded <- results[[backend]]$ok
+  }
 
   for (backend in failed) {
     unmet <- unmet_requirements(backend_defs()[[backend]]$packages, libpath)
@@ -188,9 +195,21 @@ preflight <- function(backends, prefer, libpath_fixed, libpath) {
       reason <- if (nrow(unmet) > 0) describe_unmet(unmet)[[1]] else results[[backend]]$error
       skip[[backend]] <- paste("does not load:", reason)
     }
-    cli::cli_inform(c("!" = "Skipping {.val {backend}}: {skip[[backend]]}"))
+    checks <- cli_escape(failed_checks(diagnostics[[backend]]))
+    cli::cli_inform(c(
+      "!" = "Skipping {.val {backend}}: {skip[[backend]]}",
+      if (length(checks) > 0) c(i = "Its own checks found:", stats::setNames(checks, rep("x", length(checks))))
+    ))
+    if (length(checks) > 0) {
+      skip[[backend]] <- paste0(
+        skip[[backend]],
+        " (",
+        paste(failed_checks(diagnostics[[backend]]), collapse = "; "),
+        ")"
+      )
+    }
   }
-  list(prefer = prefer, skip = skip, libpath = libpath)
+  list(prefer = prefer, skip = skip, libpath = libpath, diagnostics = diagnostics)
 }
 
 # Asks whether to use tidyarena's newer packages. Without a user to ask, the
@@ -232,4 +251,8 @@ retry_with_arena <- function(backend) {
     libpath <- default_libpath("arena")
   }
   load_test(backend, libpath)[[backend]]
+}
+
+cli_escape <- function(x) {
+  gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
 }

@@ -115,14 +115,27 @@ env_gpu <- function() {
   if (is.na(out[[1]])) {
     return(list())
   }
+  cuda <- driver_cuda_version()
   lapply(strsplit(out, ",\\s*"), function(f) {
     list(
       name = f[[1]],
       memory = as.numeric(f[[2]]) * 2^20,
       driver = f[[3]],
-      compute_capability = f[[4]]
+      compute_capability = f[[4]],
+      cuda = cuda
     )
   })
+}
+
+# The newest CUDA version the driver supports, from the nvidia-smi header.
+# Newer drivers label it "CUDA UMD Version".
+driver_cuda_version <- function() {
+  header <- run_quiet("nvidia-smi")
+  line <- grep("CUDA (UMD )?Version:", header, value = TRUE)
+  if (length(line) == 0) {
+    return(NA_character_)
+  }
+  sub(".*CUDA (UMD )?Version:\\s*([0-9.]+).*", "\\2", line[[1]])
 }
 
 env_disk <- function(dir) {

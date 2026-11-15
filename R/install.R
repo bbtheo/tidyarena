@@ -111,9 +111,10 @@ inform_not_on_cran <- function(backends, lib) {
   defs <- backend_defs()
   for (backend in backends) {
     if (!all(packages_installed(defs[[backend]]$packages, c(lib, .libPaths())))) {
+      hint <- install_hint(backend)
       cli::cli_inform(c(
         "!" = "{.val {backend}} is not on CRAN, so it can't be installed from Package Manager.",
-        i = defs[[backend]]$install_hint
+        stats::setNames(hint, rep("i", length(hint)))
       ))
     }
   }
@@ -330,9 +331,10 @@ offer_installs <- function(backends, install, libpath) {
     return(prefer)
   }
   if (length(status$elsewhere) > 0) {
+    hints <- unlist(lapply(status$elsewhere, install_hint))
     cli::cli_inform(c(
       i = "Not installed, and not on CRAN: {.val {status$elsewhere}}.",
-      vapply(status$elsewhere, function(b) backend_defs()[[b]]$install_hint, character(1))
+      stats::setNames(hints, rep(" ", length(hints)))
     ))
   }
   has_missing <- length(status$missing) > 0
@@ -380,8 +382,8 @@ offer_installs <- function(backends, install, libpath) {
 # here). Backends not on CRAN are reported apart, in `elsewhere`.
 backend_status <- function(backends, libpath) {
   defs <- backend_defs()
-  has_gpu <- nzchar(Sys.which("nvidia-smi"))
-  runnable <- names(defs)[!vapply(defs, `[[`, logical(1), "gpu") | has_gpu]
+  platform <- platform_info()
+  runnable <- Filter(function(b) length(unmet_platform(b, platform)) == 0, names(defs))
   candidates <- union(anchor_backend, backends %||% runnable)
   installed <- vapply(
     candidates,

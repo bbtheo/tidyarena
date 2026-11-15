@@ -115,7 +115,7 @@ arena_run <- function(
     plan <- skip_backends(plan, checked$skip)
     check_disk(plan)
     dir <- dir %||% new_run_dir()
-    run <- new_run(dir, plan, prefer)
+    run <- new_run(dir, plan, prefer, checked$diagnostics)
   }
   settings <- attr(plan, "settings")
 
@@ -325,7 +325,7 @@ new_run_dir <- function() {
   file.path(tools::R_user_dir("tidyarena", "data"), "runs", id)
 }
 
-new_run <- function(dir, plan, prefer = "session") {
+new_run <- function(dir, plan, prefer = "session", diagnostics = list()) {
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   settings <- attr(plan, "settings")
   run <- list(
@@ -342,6 +342,7 @@ new_run <- function(dir, plan, prefer = "session") {
     guard = guard_method(),
     libraries = install_records(attr(plan, "libpath")),
     prefer = prefer,
+    diagnostics = diagnostics,
     started = format_time(Sys.time()),
     finished = NULL,
     env = arena_env(dir)
