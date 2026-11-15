@@ -27,3 +27,8 @@
   library, and `update = TRUE` installs newer versions into tidyarena's
   library. Every result records whether each backend package came from
   tidyarena's library or yours.
+
+* The answer to the update question decides which versions a run uses:
+  after updating, tidyarena's library comes first; otherwise your library
+  comes first and tidyarena's only supplies missing backends. The choice is
+  stored in `run.json` and kept when a run is resumed.

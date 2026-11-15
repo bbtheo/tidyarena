@@ -10,8 +10,8 @@
 #' spill set their memory limit from `.budget_mb`.
 #'
 #' @param libpath Library paths to look for the backend packages in. Defaults
-#'   to [arena_lib()], when it exists, followed by the session's library
-#'   paths.
+#'   to the session's library paths, followed by [arena_lib()] when it
+#'   exists.
 #' @returns A tibble with one row per backend:
 #'   * `backend`: backend id.
 #'   * `packages`: packages the backend needs.

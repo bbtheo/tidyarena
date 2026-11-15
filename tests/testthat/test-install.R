@@ -99,7 +99,7 @@ test_that("offer_installs() only reports when not interactive", {
   skip_if_not_installed("pak")
   installs <- local_status(missing = "duckplyr", outdated = old_dt)
   rlang::local_interactive(FALSE)
-  expect_snapshot(offer_installs(NULL, "ask", .libPaths()))
+  expect_snapshot(prefer <- offer_installs(NULL, "ask", .libPaths()))
   expect_length(installs$calls, 0)
 })
 
@@ -119,4 +119,26 @@ test_that("outdated_packages() compares with the repository", {
   out <- outdated_packages(c("rlang", "nonexistent"), .libPaths(), c(CRAN = "x"))
   expect_equal(out$package, "rlang")
   expect_equal(out$available, "99.0.0")
+})
+
+test_that("updating puts tidyarena's library first", {
+  withr::local_envvar(R_USER_DATA_DIR = withr::local_tempdir())
+  dir.create(arena_lib(), recursive = TRUE)
+  expect_equal(default_libpath("arena")[[1]], arena_lib())
+  expect_equal(utils::tail(default_libpath("session"), 1), arena_lib())
+  expect_equal(default_libpath()[[1]], .libPaths()[[1]])
+})
+
+test_that("offer_installs() returns the library to prefer", {
+  skip_if_not_installed("pak")
+  local_status(missing = "duckplyr", outdated = old_dt)
+  local_mocked_bindings(ask_yes_no = function(...) TRUE)
+  rlang::local_interactive(TRUE)
+  expect_equal(offer_installs(NULL, "ask", .libPaths()), "arena")
+  expect_equal(offer_installs(NULL, "missing", .libPaths()), "session")
+  expect_equal(offer_installs(NULL, "update", .libPaths()), "arena")
+  expect_equal(offer_installs(NULL, "never", .libPaths()), "session")
+
+  local_mocked_bindings(ask_yes_no = function(...) FALSE)
+  expect_equal(offer_installs(NULL, "ask", .libPaths()), "session")
 })

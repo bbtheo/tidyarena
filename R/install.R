@@ -287,11 +287,17 @@ build_jobs <- function(budget, per_job = 2.5 * 2^30) {
   max(1L, min(as.integer(cores), as.integer(budget %/% per_job)))
 }
 
-# Default library paths for runs: tidyarena's own library first, when
-# arena_install() has created it, then the session's.
-default_libpath <- function() {
+# Default library paths for runs. With `prefer = "session"` the session's
+# libraries come first and tidyarena's library only supplies what they lack.
+# With `prefer = "arena"`, chosen by updating, tidyarena's library comes
+# first, so its newer versions are used.
+default_libpath <- function(prefer = c("session", "arena")) {
+  prefer <- rlang::arg_match(prefer)
   lib <- arena_lib()
-  if (dir.exists(lib)) c(lib, .libPaths()) else .libPaths()
+  if (!dir.exists(lib)) {
+    return(.libPaths())
+  }
+  if (prefer == "arena") c(lib, .libPaths()) else c(.libPaths(), lib)
 }
 
 # Install records of the libraries in `libpath` that arena_install() made.
@@ -302,13 +308,13 @@ install_records <- function(libpath) {
 }
 
 # Before a run: finds missing and outdated backends and, depending on
-# `install`, asks about them, installs them or just mentions them.
+# `install`, asks about them, installs them or just mentions them. Returns
+# which library should come first: "arena" if the user chose to update,
+# "session" otherwise.
 offer_installs <- function(backends, install, libpath) {
-  if (install == "never") {
-    return(invisible())
-  }
-  if (!rlang::is_installed("pak")) {
-    return(invisible())
+  prefer <- if (install == "update") "arena" else "session"
+  if (install == "never" || !rlang::is_installed("pak")) {
+    return(prefer)
   }
   status <- tryCatch(
     backend_status(backends, libpath),
@@ -321,7 +327,7 @@ offer_installs <- function(backends, install, libpath) {
     }
   )
   if (is.null(status)) {
-    return(invisible())
+    return(prefer)
   }
   if (length(status$elsewhere) > 0) {
     cli::cli_inform(c(
@@ -332,7 +338,7 @@ offer_installs <- function(backends, install, libpath) {
   has_missing <- length(status$missing) > 0
   has_outdated <- nrow(status$outdated) > 0
   if (!has_missing && !has_outdated) {
-    return(invisible())
+    return(prefer)
   }
 
   outdated_lines <- sprintf(
@@ -347,7 +353,7 @@ offer_installs <- function(backends, install, libpath) {
       i = if (has_outdated) "Newer versions available: {outdated_lines}.",
       i = "Install them with {.fn arena_install}, or pass {.arg install} to {.fn arena_run}."
     ))
-    return(invisible())
+    return(prefer)
   }
 
   if (has_missing) {
@@ -360,13 +366,14 @@ offer_installs <- function(backends, install, libpath) {
     question <- c(
       "Newer versions are available:",
       stats::setNames(outdated_lines, rep("*", length(outdated_lines))),
-      "Install them into tidyarena's library? Your own library is not changed."
+      "Install them into tidyarena's library and use them for this run? Your own library is not changed."
     )
     if (install == "update" || (install == "ask" && ask_yes_no(question))) {
       install_backends(status$outdated_backends, update = TRUE)
+      prefer <- "arena"
     }
   }
-  invisible()
+  prefer
 }
 
 # Missing and outdated backends among `backends` (default: all that can run

@@ -30,7 +30,7 @@ sizes are not comparable with other machines.}
 available memory, leaving at least 2 GB free.}
 
 \item{libpath}{Library paths the backends are loaded from. Defaults to
-\code{\link[=arena_lib]{arena_lib()}}, when it exists, followed by the session's library paths.}
+the session's library paths, followed by \code{\link[=arena_lib]{arena_lib()}} when it exists.}
 
 \item{install}{What to do about missing and outdated backends before the
 run: \code{"ask"} (only in interactive sessions), \code{"missing"} to install
@@ -80,6 +80,14 @@ default, it asks whether to install the missing ones and whether to update
 the outdated ones. Both go into tidyarena's own library (\code{\link[=arena_lib]{arena_lib()}});
 your library is not changed. See \code{\link[=arena_install]{arena_install()}}. Outside an interactive
 session it does not ask, and installs nothing.
+
+The answer about updates also decides which versions the run uses. After
+updating, tidyarena's library comes first, so the newest versions are used
+for every package, dependencies included. Otherwise your library comes
+first and tidyarena's library only supplies backends you don't have. A
+backend installed by tidyarena can then need a newer dependency than the
+one in your library; it then fails at setup, and the error is in the
+results.
 }
 
 \examples{

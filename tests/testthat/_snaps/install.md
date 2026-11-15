@@ -22,7 +22,7 @@
 # offer_installs() only reports when not interactive
 
     Code
-      offer_installs(NULL, "ask", .libPaths())
+      prefer <- offer_installs(NULL, "ask", .libPaths())
     Message
       i Not installed: "duckplyr".
       i Newer versions available: data.table 1.18.4 -> 1.18.6.

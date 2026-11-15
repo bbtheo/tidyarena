@@ -31,6 +31,14 @@
 #' your library is not changed. See [arena_install()]. Outside an interactive
 #' session it does not ask, and installs nothing.
 #'
+#' The answer about updates also decides which versions the run uses. After
+#' updating, tidyarena's library comes first, so the newest versions are used
+#' for every package, dependencies included. Otherwise your library comes
+#' first and tidyarena's library only supplies backends you don't have. A
+#' backend installed by tidyarena can then need a newer dependency than the
+#' one in your library; it then fails at setup, and the error is in the
+#' results.
+#'
 #' @inheritParams arena_plan
 #' @param install What to do about missing and outdated backends before the
 #'   run: `"ask"` (only in interactive sessions), `"missing"` to install
@@ -62,6 +70,10 @@ arena_run <- function(
   if (resuming) {
     run <- read_run_json(dir)
     check_resume(run, tier, backends, tasks, sizes)
+    prefer <- run$prefer %||% "session"
+    if (missing(libpath)) {
+      libpath <- default_libpath(prefer)
+    }
     plan <- arena_plan(
       run$tier,
       backends = unlist(run$backends),
@@ -71,17 +83,18 @@ arena_run <- function(
       libpath = libpath
     )
   } else {
-    # `libpath` is not evaluated before this, so that its default includes
-    # tidyarena's library when installing has just created it.
+    prefer <- "session"
     if (missing(libpath)) {
-      offer_installs(backends, install, default_libpath())
+      prefer <- offer_installs(backends, install, default_libpath())
+      # Computed after installing, which may have created tidyarena's library.
+      libpath <- default_libpath(prefer)
     } else if (arena_lib() %in% libpath) {
       offer_installs(backends, install, libpath)
     }
     plan <- arena_plan(tier, backends, tasks, sizes, budget, libpath)
     check_disk(plan)
     dir <- dir %||% new_run_dir()
-    run <- new_run(dir, plan)
+    run <- new_run(dir, plan, prefer)
   }
   settings <- attr(plan, "settings")
 
@@ -284,7 +297,7 @@ new_run_dir <- function() {
   file.path(tools::R_user_dir("tidyarena", "data"), "runs", id)
 }
 
-new_run <- function(dir, plan) {
+new_run <- function(dir, plan, prefer = "session") {
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   settings <- attr(plan, "settings")
   run <- list(
@@ -300,6 +313,7 @@ new_run <- function(dir, plan) {
     budget = settings$budget,
     guard = guard_method(),
     libraries = install_records(attr(plan, "libpath")),
+    prefer = prefer,
     started = format_time(Sys.time()),
     finished = NULL,
     env = arena_env(dir)

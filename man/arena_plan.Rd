@@ -28,7 +28,7 @@ sizes are not comparable with other machines.}
 available memory, leaving at least 2 GB free.}
 
 \item{libpath}{Library paths the backends are loaded from. Defaults to
-\code{\link[=arena_lib]{arena_lib()}}, when it exists, followed by the session's library paths.}
+the session's library paths, followed by \code{\link[=arena_lib]{arena_lib()}} when it exists.}
 }
 \value{
 A tibble with one row per cell: \code{size}, \code{task}, \code{backend},

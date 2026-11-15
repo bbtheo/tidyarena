@@ -61,7 +61,12 @@ If you want to do it anyway, `build = "capped"` compiles them with a number
 of jobs that fits in free memory and, on Linux with systemd, inside a memory
 limit with swap disabled.
 
-Backends that are not installed are skipped.
+You don't have to do this first: when a run starts, `arena_run()` checks
+the backends and asks whether to install missing ones and whether to update
+outdated ones. If you update, the run uses the newest versions of everything
+from tidyarena's library. If you don't, it uses the packages in your own
+library and takes only the backends you lack from tidyarena's. Backends that
+are not installed are skipped.
 
 ## Usage
 

@@ -8,8 +8,8 @@ arena_backends(libpath = default_libpath())
 }
 \arguments{
 \item{libpath}{Library paths to look for the backend packages in. Defaults
-to \code{\link[=arena_lib]{arena_lib()}}, when it exists, followed by the session's library
-paths.}
+to the session's library paths, followed by \code{\link[=arena_lib]{arena_lib()}} when it
+exists.}
 }
 \value{
 A tibble with one row per backend:
