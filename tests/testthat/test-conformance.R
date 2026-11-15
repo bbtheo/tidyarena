@@ -41,3 +41,14 @@ test_that("arena_check_task() warns when the memory factor is too low", {
   messages <- capture_messages(arena_check_task("filter_rows", backends = "dplyr", n = 100))
   expect_match(paste(messages, collapse = ""), "too low")
 })
+
+test_that("the check table lists notes below it", {
+  cells <- tibble::tibble(
+    task = c("a", "b"),
+    backend = "x",
+    status = c("ok", "error"),
+    correct = c(TRUE, NA),
+    note = c("", "boom")
+  )
+  expect_snapshot(cat(format_conformance(cells), sep = "\n"))
+})

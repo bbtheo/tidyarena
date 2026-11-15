@@ -196,14 +196,20 @@ measure_mem_factor <- function(tasks, libpath, n = 1e6) {
   round(pmax(factor, 0.1), 1)
 }
 
+# The table of tasks, then the notes of the ones that didn't run cleanly,
+# which would make the table too wide.
 format_conformance <- function(cells) {
   table <- data.frame(
     task = cells$task,
     status = cells$status,
-    correct = ifelse(is.na(cells$correct), "-", ifelse(cells$correct, "yes", "no")),
-    note = cells$note
+    correct = ifelse(is.na(cells$correct), "-", ifelse(cells$correct, "yes", "no"))
   )
-  utils::capture.output(print(table, row.names = FALSE, right = FALSE))
+  lines <- utils::capture.output(print(table, row.names = FALSE, right = FALSE))
+  noted <- nzchar(cells$note)
+  if (any(noted)) {
+    lines <- c(lines, "", paste0("* ", cells$task[noted], ": ", cells$note[noted]))
+  }
+  lines
 }
 
 conformance_summary <- function(cells) {
