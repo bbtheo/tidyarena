@@ -10,11 +10,11 @@ list(
     github = c(polars = "pola-rs/r-polars", tidypolars = "etiennebacher/tidypolars"),
     env = c(NOT_CRAN = "true", LIBR_POLARS_BUILD = "false")
   ),
+  # Turns each table, `x`, named `name`, into the backend's form.
+  convert = "polars::as_polars_df(x)",
   setup = c(
     "library(dplyr)",
     "library(tidypolars)",
-    "df <- polars::as_polars_df(df)",
-    "lookup <- polars::as_polars_df(lookup)",
     ".collect <- function(x) tibble::as_tibble(as.data.frame(x))",
     # Eager Polars data frames are computed already.
     ".compute <- function(x) if (inherits(x, \"polars_lazy_frame\")) dplyr::compute(x) else x"

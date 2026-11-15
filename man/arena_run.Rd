@@ -60,7 +60,9 @@ Each task gets a memory budget. On Linux with systemd the budget is a hard
 limit enforced by the kernel (a cgroup with swap disabled), so a task that
 overruns it is killed without pushing the machine into swap. On every
 platform a watchdog also kills a task that goes over budget, leaves less
-than 1 GB free, makes swap grow, or runs past the tier's timeout.
+than 1 GB free, makes swap grow, or runs past the tier's timeout. Loading
+the data into the backend has the tier's timeout of its own
+(\code{"setup_timeout"}).
 
 A task that fails at one size is not run at larger sizes on the same
 backend. Tasks predicted not to fit are skipped before they start.
@@ -68,9 +70,10 @@ backend. Tasks predicted not to fit are skipped before they start.
 
 \section{What is measured}{
 
-For each repetition: wall time of the pipeline plus \code{\link[dplyr:collect]{dplyr::collect()}},
-and peak resident memory of the process during it (exact on Linux,
-sampled every 0.1 seconds elsewhere). For each cell: whether it ran,
+For each repetition, twice: wall time and peak resident memory (exact on
+Linux, sampled every 0.1 seconds elsewhere) of the pipeline with
+\code{\link[dplyr:collect]{dplyr::collect()}} and every value of the result read, and of the
+pipeline with \code{\link[dplyr:compute]{dplyr::compute()}}, the result kept in the backend. For each cell: whether it ran,
 whether a backend fell back to dplyr, whether its result matches dplyr's,
 how much it spilled to disk, and the versions of every loaded package.
 }

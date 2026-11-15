@@ -18,25 +18,25 @@ request.
 
 ## Adding a backend
 
-A backend turns the two generated tables into its own form. Its `setup` is
-R code run in a fresh R process, with `df` and `lookup` bound to plain data
-frames and `.budget_mb` to the task's memory budget in megabytes. It must
-rebind `df` and `lookup`:
+A backend turns the tables of a data set into its own form. Its `setup` is
+R code run once in a fresh R process, with `.budget_mb` bound to the task's
+memory budget in megabytes. Its `convert` is an expression that turns one
+table, `x`, a plain data frame named `name`, into the backend's form; it is
+applied to every table of the task's data set (`df` and `lookup`, or
+db-benchmark's `x` and `big`, or TPC-H's `lineitem` and the rest):
 
 ```{r}
 # inst/backends/mybackend.R
 # mybackend: dplyr verbs run by MyEngine.
 list(
   packages = c("dplyr", "mybackend"),
-  setup = c(
-    "library(dplyr)",
-    "df <- mybackend::as_my_table(df)",
-    "lookup <- mybackend::as_my_table(lookup)"
-  )
+  convert = "mybackend::as_my_table(x)",
+  setup = "library(dplyr)"
 )
 ```
 
-Setup is not timed; the task and the collect back into R are. Optional
+Setup and conversion are not timed; the task is, twice: once collected
+into R with every value read, and once computed in the backend. Optional
 fields:
 
 | Field | Default | Use |
@@ -70,8 +70,10 @@ result it gives must be correct.
 
 ## Adding a task
 
-A task is one dplyr pipeline over `df` and `lookup` (see `arena_data()` for
-their columns):
+A task is dplyr code over the tables of one data set (see `arena_data()`):
+tidyarena's own `df` and `lookup` by default. Its value is the result; it
+can be one pipeline or several statements, as the TPC-H-derived queries
+are.
 
 ```{r}
 # inst/tasks/summarise_median.R
@@ -83,8 +85,17 @@ list(
 )
 ```
 
+* A task runs as written on every backend: don't change one to suit a
+  backend. A backend that can't run it fails it, and that is a result.
 * `family` groups tasks in reports: `filter`, `mutate`, `summarise`, `join`,
   `window`, `arrange`, `distinct`, `string`, or a new one.
+* `data` (default `"arena"`): the data set, one of `"dbbench_groupby"`,
+  `"dbbench_join"`, `"joins"`, `"strings"`, `"datetimes"` or `"tpch"` for
+  the others; see `arena_data()` for their tables.
+* `packages`: packages the code uses besides the backend's, such as
+  `"stringr"` or `"lubridate"`. They are attached before the task runs, so
+  the code can call `str_sub()` or `floor_date()` as users do. Without them
+  the task is skipped.
 * `order_key`: if the row order is part of the answer, the column whose
   order is checked. Otherwise results are compared without regard to order.
 * `mem_factor` (default 1): memory the task needs beyond its input,
@@ -112,8 +123,14 @@ code makes its old results incomparable. Add a task with a new id instead,
 and leave the old one until a new suite version drops it.
 
 Tasks only use the generated columns. If a workload needs data of a new
-shape, it needs a new table or a new version of the generator, not a change
-to the existing columns.
+shape, it needs a new data set or a new version of a generator, not a
+change to the existing columns. Data sets are defined in `R/data.R`: their
+tables, a generator that runs in a fresh R process, and an estimate of
+their size in memory.
+
+Code from other projects keeps their license and attribution: say where it
+comes from in the file's header and in `inst/COPYRIGHTS`. tidyarena is
+MPL-2.0, which code under MIT, Apache-2.0 or MPL-2.0 can join.
 
 ## Pull requests
 

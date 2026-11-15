@@ -11,6 +11,8 @@ A tibble with one row per task:
 \itemize{
 \item \code{task}: task id.
 \item \code{family}: the kind of operation, used to group results in reports.
+The tasks from db-benchmark have the families \code{"dbbench-groupby"} and
+\code{"dbbench-join"}, the ones derived from TPC-H \code{"tpch"}.
 \item \code{code}: the pipeline, as R code.
 \item \code{order_key}: for tasks whose row order is part of the answer, the
 column whose sequence is checked; \code{NA} otherwise.
@@ -21,15 +23,17 @@ or \code{".by"}. Every grouped task exists in both forms (the \code{.by} one
 has the suffix \verb{_by}), because some backends run only one of them.
 \code{NA} for tasks without grouping. The \code{.by} forms are written by
 tidyarena from the \code{group_by()} ones.
+\item \code{data}: the data set the task runs on.
+\item \code{packages}: packages the task's code uses besides those of the
+backend, such as lubridate.
 \item \code{hash}: a hash of \code{code}. A task id always means the same code:
 results with different hashes are never compared.
 }
 }
 \description{
 Every task is one dplyr pipeline, written once and run unchanged on every
-backend. A pipeline sees two tables: \code{df}, the main table, and \code{lookup}, a
-small dimension table keyed by \code{g_high}. See \code{\link[=arena_data]{arena_data()}} for the
-columns. Each task is a file in the package's \code{tasks} folder; see
+backend, over the tables of one data set (see \code{\link[=arena_data]{arena_data()}}): tidyarena's
+own \code{df} and \code{lookup}, db-benchmark's, or the TPC-H schema. Each task is a file in the package's \code{tasks} folder; see
 \code{vignette("extending")} to add one.
 }
 \examples{

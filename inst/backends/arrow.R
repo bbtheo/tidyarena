@@ -5,9 +5,9 @@ list(
   # Where Package Manager has no binary, the R package is compiled and Arrow's
   # C++ library is downloaded prebuilt from Apache instead of built too.
   install = list(env = c(NOT_CRAN = "true", LIBARROW_BINARY = "true")),
+  # Turns each table, `x`, named `name`, into the backend's form.
+  convert = "arrow::arrow_table(x)",
   setup = c(
-    "library(dplyr)",
-    "df <- arrow::arrow_table(df)",
-    "lookup <- arrow::arrow_table(lookup)"
+    "library(dplyr)"
   )
 )

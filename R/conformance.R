@@ -133,13 +133,19 @@ arena_check_task <- function(
 # Runs `tasks` on `backends` (the anchor first, as the reference) with one
 # timed repetition. Returns a tibble: task, backend, status, correct, note,
 # fingerprint and peak_rss_delta.
-conformance <- function(tasks, backends, n, libpath, reps = 1L) {
+conformance <- function(
+  tasks,
+  backends,
+  n,
+  libpath,
+  reps = 1L,
+  budget = min(default_budget(), 4 * 2^30)
+) {
   dir <- withr_tempdir()
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
   dir.create(file.path(dir, "cells"))
   dir.create(file.path(dir, "logs"))
-  data <- c(arena_data(n), size = n)
-  settings <- list(reps = reps, budget = min(default_budget(), 4 * 2^30), timeout = 60)
+  settings <- list(reps = reps, budget = budget, timeout = 60)
   run <- list(guard = guard_method())
   all_tasks <- arena_tasks()
   defs <- backend_defs()
@@ -148,9 +154,12 @@ conformance <- function(tasks, backends, n, libpath, reps = 1L) {
   rows <- list()
   for (task_id in tasks) {
     task <- all_tasks[all_tasks$task == task_id, ]
+    # Some data sets don't come smaller than a minimum size.
+    size <- max(n, dataset_def(task$data)$min_size)
+    data <- c(arena_data(size, dataset = task$data), size = size)
     ref <- NULL
     for (backend in backends) {
-      cell <- list(size = n, task = task_id, backend = backend)
+      cell <- list(size = size, task = task_id, backend = backend)
       record <- run_cell(cell, task, defs[[backend]], data, settings, run, dir, libpath)
       if (backend == anchor_backend) {
         ref <- record$fingerprint
@@ -192,7 +201,10 @@ conformance_note <- function(record) {
 # factor, measured with dplyr at 1e6 rows. NA where it couldn't be measured.
 measure_mem_factor <- function(tasks, libpath, n = 1e6) {
   cells <- conformance(tasks, anchor_backend, n, libpath)
-  factor <- cells$peak_rss_delta / (backend_defs()[[anchor_backend]]$mem_factor * data_bytes(n))
+  all_tasks <- arena_tasks()
+  dataset <- all_tasks$data[match(tasks, all_tasks$task)]
+  size <- pmax(n, vapply(dataset, function(d) dataset_def(d)$min_size, numeric(1)))
+  factor <- cells$peak_rss_delta / (backend_defs()[[anchor_backend]]$mem_factor * data_bytes(size, dataset))
   round(pmax(factor, 0.1), 1)
 }
 

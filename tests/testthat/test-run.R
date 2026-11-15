@@ -57,7 +57,7 @@ test_that("resuming refuses tasks whose code changed", {
 
 test_that("results record the hash of the task code", {
   res <- local_tiny_run()
-  expect_equal(res$cells$task_hash[res$cells$task == "filter_rows"], arena_tasks()$hash[[4]])
+  expect_equal(res$cells$task_hash[res$cells$task == "filter_rows"], with(arena_tasks(), hash[task == "filter_rows"]))
 })
 
 test_that("each repetition is timed in R and computed in the backend", {
@@ -78,4 +78,32 @@ test_that("a backend whose compute fails still gets its in-R timing", {
   cells <- suppressMessages(conformance("filter_rows", c("dplyr", "nocompute"), 100, .libPaths()))
   expect_equal(cells$status, c("ok", "ok"))
   expect_true(cells$correct[[2]])
+})
+
+test_that("a setup that takes too long is stopped on its own limit", {
+  dir <- withr::local_tempdir()
+  data <- arena_data(100, file.path(dir, "data"))
+  spec <- list(
+    code = "df",
+    order_key = NA_character_,
+    setup = c(".collect <- function(x) x", ".convert <- function(x, name) x", "Sys.sleep(30)"),
+    data = data$tables,
+    reader_lib = reader_lib(),
+    reps = 0L,
+    budget_mb = 1024,
+    libpath = .libPaths(),
+    tmpdir = dir,
+    out = file.path(dir, "out.rds")
+  )
+  t0 <- Sys.time()
+  result <- run_worker(
+    spec,
+    budget = 2^31,
+    timeout = 60,
+    guard = "watchdog",
+    log = file.path(dir, "log"),
+    setup_timeout = 2
+  )
+  expect_equal(result$status, "setup_timeout")
+  expect_lt(as.double(Sys.time() - t0, units = "secs"), 20)
 })

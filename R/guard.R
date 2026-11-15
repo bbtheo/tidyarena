@@ -52,7 +52,7 @@ systemd_args <- function(budget) {
 
 # Runs the worker on one spec and watches it. Returns the worker's result,
 # with `status` set by the watchdog when it had to step in.
-run_worker <- function(spec, budget, timeout, guard, log) {
+run_worker <- function(spec, budget, timeout, guard, log, setup_timeout = timeout) {
   spec_path <- sub("\\.rds$", "-spec.rds", spec$out)
   saveRDS(spec, spec_path)
   rscript <- file.path(R.home("bin"), "Rscript")
@@ -82,7 +82,14 @@ run_worker <- function(spec, budget, timeout, guard, log) {
   )
   on.exit(if (p$is_alive()) p$kill_tree(), add = TRUE)
 
-  watch <- watch_worker(p, budget, timeout, spec$tmpdir)
+  watch <- watch_worker(
+    p,
+    budget,
+    timeout,
+    spec$tmpdir,
+    setup_timeout = setup_timeout,
+    setup_done = setup_marker(spec$out)
+  )
   p$wait()
 
   result <- if (file.exists(spec$out)) readRDS(spec$out) else list(reps = list())
@@ -101,7 +108,19 @@ run_worker <- function(spec, budget, timeout, guard, log) {
   result
 }
 
-watch_worker <- function(p, budget, timeout, tmpdir, interval = 0.1) {
+# Stops the worker when it uses too much memory or time. Loading the data
+# into the backend has a limit of its own, `setup_timeout`: a backend that
+# can't load the data fails then, instead of using the time of the whole
+# cell. The worker creates the file `setup_done` when setup is over.
+watch_worker <- function(
+  p,
+  budget,
+  timeout,
+  tmpdir,
+  interval = 0.1,
+  setup_timeout = timeout,
+  setup_done = NULL
+) {
   start <- Sys.time()
   swap0 <- ps::ps_system_swap()[["used"]]
   swap_limit <- 512 * 2^20
@@ -127,6 +146,8 @@ watch_worker <- function(p, budget, timeout, tmpdir, interval = 0.1) {
       "swap_guard"
     } else if (elapsed > timeout) {
       "timeout"
+    } else if (elapsed > setup_timeout && !is.null(setup_done) && !file.exists(setup_done)) {
+      "setup_timeout"
     }
     if (!is.null(reason)) {
       p$kill_tree()
@@ -159,4 +180,8 @@ tree_rss <- function(handle) {
 dir_bytes <- function(dir) {
   files <- list.files(dir, recursive = TRUE, full.names = TRUE, all.files = TRUE)
   sum(file.size(files), na.rm = TRUE)
+}
+
+setup_marker <- function(out) {
+  paste0(out, ".setup-done")
 }

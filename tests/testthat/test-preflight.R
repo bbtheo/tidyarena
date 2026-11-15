@@ -153,7 +153,7 @@ test_that("a backend that needs newer packages than yours runs with tidyarena's"
       packages = "fakebackend",
       gpu = FALSE,
       mem_factor = 1,
-      setup = c("library(fakebackend)", ".collect <- function(x) x")
+      setup = c("library(fakebackend)", ".collect <- function(x) x", ".convert <- function(x, name) x")
     ))
   })
   session_first <- c(session, .libPaths(), arena)

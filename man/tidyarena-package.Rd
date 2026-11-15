@@ -16,5 +16,11 @@ Authors:
   \item Theo Blauberg \email{ma.oon.theo@gmail.com}
 }
 
+Other contributors:
+\itemize{
+  \item H2O.ai, DuckDB Labs and the db-benchmark contributors (db-benchmark data generators and questions, see inst/COPYRIGHTS) [copyright holder]
+  \item Ursa Computing (TPC-H-derived queries from arrowbench, see inst/COPYRIGHTS) [copyright holder]
+}
+
 }
 \keyword{internal}

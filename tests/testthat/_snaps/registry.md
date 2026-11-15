@@ -11,7 +11,7 @@
     Condition
       Error:
       ! 'inst/tasks/bad.R' has unknown field memfactor.
-      i Known fields: family, code, order_key, mem_factor, and twin.
+      i Known fields: family, code, data, packages, order_key, mem_factor, and twin.
     Code
       check_def("df", "bad", "tasks", task_fields)
     Condition

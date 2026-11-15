@@ -90,19 +90,32 @@ local({
     table
   }
   env <- new.env(parent = globalenv())
-  env$df <- read_table(spec$data$df)
-  env$lookup <- read_table(spec$data$lookup)
+  for (name in names(spec$data)) {
+    env[[name]] <- read_table(spec$data[[name]])
+  }
   try(unloadNamespace("nanoparquet"), silent = TRUE)
   gc()
   env$.budget_mb <- spec$budget_mb
 
   t0 <- Sys.time()
+  # The backend's setup, then its conversion of every table into its own
+  # form.
   tryCatch(
-    capture(eval(parse(text = spec$setup), envir = env)),
+    capture({
+      eval(parse(text = spec$setup), envir = env)
+      for (name in names(spec$data)) {
+        env[[name]] <- env$.convert(env[[name]], name)
+      }
+      # Packages the task's code uses, attached as a user would.
+      for (package in spec$packages) {
+        library(package, character.only = TRUE)
+      }
+    }),
     error = function(e) fail("setup_error", e)
   )
   result$setup_seconds <- as.double(Sys.time() - t0, units = "secs")
   save_result()
+  file.create(paste0(spec$out, ".setup-done"))
 
   # Messages from setup (package start-up notes) are kept apart from the
   # task's, so that only the task's are checked for fallbacks.

@@ -1,8 +1,13 @@
 Package: tidyarena
 Title: Benchmark Arena for 'dplyr' Backends
 Version: 0.0.0.9000
-Authors@R: 
-    person("Theo", "Blauberg", , "ma.oon.theo@gmail.com", role = c("aut", "cre"))
+Authors@R: c(
+    person("Theo", "Blauberg", , "ma.oon.theo@gmail.com", role = c("aut", "cre")),
+    person("H2O.ai, DuckDB Labs and the db-benchmark contributors", role = "cph",
+           comment = "db-benchmark data generators and questions, see inst/COPYRIGHTS"),
+    person("Ursa Computing", role = "cph",
+           comment = "TPC-H-derived queries from arrowbench, see inst/COPYRIGHTS")
+  )
 Description: Runs one suite of 'dplyr' pipelines on many backends
     ('dplyr', 'dtplyr', 'duckplyr', 'dbplyr' with 'duckdb', 'arrow',
     'tidypolars', 'cuplyr') and records time, peak memory, coverage and
@@ -10,7 +15,8 @@ Description: Runs one suite of 'dplyr' pipelines on many backends
     Each task runs in its own R process under a memory budget, so a
     benchmark run cannot exhaust the machine. Results are written in a
     documented format meant for comparison across machines.
-License: MIT + file LICENSE
+License: MPL (>= 2)
+Copyright: See inst/COPYRIGHTS
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0

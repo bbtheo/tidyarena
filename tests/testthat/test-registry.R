@@ -1,5 +1,7 @@
 test_that("every task and backend file loads", {
-  expect_length(task_defs(), 23)
+  tasks <- task_defs()
+  expect_length(tasks, 119)
+  expect_equal(sum(vapply(tasks, `[[`, character(1), "data") == "arena"), 23)
   expect_equal(names(backend_defs())[[1]], anchor_backend)
 })
 

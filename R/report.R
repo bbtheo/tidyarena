@@ -54,6 +54,15 @@ arena_report <- function(x) {
   )
   print_lines(format_backends(backends))
 
+  by_data <- dataset_summary(cells)
+  if (length(unique(by_data$data)) > 1) {
+    cli::cli_h2("Backends by data set")
+    cli::cli_text(
+      "Time in R relative to dplyr, with the share of cells run correctly in brackets."
+    )
+    print_lines(format_dataset_summary(by_data))
+  }
+
   problems <- cells[!cells$status %in% c("ok", "skipped") | cells$correct %in% FALSE, ]
   if (nrow(problems) > 0) {
     cli::cli_h2("Cells that did not run cleanly")
@@ -264,4 +273,38 @@ diagnostic_lines <- function(diagnostics) {
     if (length(checks) > 0) paste0(backend, ": ", checks)
   }))
   stats::setNames(cli_escape(lines), rep("*", length(lines)))
+}
+
+# Coverage and time ratio of every backend on every data set.
+dataset_summary <- function(cells) {
+  tasks <- arena_tasks()
+  cells$data <- tasks$data[match(cells$task, tasks$task)]
+  attempted <- cells[cells$status != "skipped" | cells$reason %in% "failed at a smaller size", ]
+  groups <- split(attempted, list(attempted$backend, attempted$data), drop = TRUE)
+  rows <- lapply(groups, function(d) {
+    good <- d$status == "ok" & d$correct %in% TRUE
+    tibble::tibble(
+      backend = d$backend[[1]],
+      data = d$data[[1]],
+      coverage = mean(good),
+      time_ratio = geo_mean(d$time_ratio[good])
+    )
+  })
+  do.call(rbind, rows)
+}
+
+format_dataset_summary <- function(by_data) {
+  datasets <- intersect(names(dataset_defs()), unique(by_data$data))
+  backends <- unique(by_data$backend)
+  table <- data.frame(backend = backends)
+  for (d in datasets) {
+    rows <- by_data[by_data$data == d, ]
+    i <- match(backends, rows$backend)
+    table[[d]] <- ifelse(
+      is.na(i),
+      "-",
+      sprintf("%s (%.0f%%)", format_ratio(rows$time_ratio[i]), 100 * rows$coverage[i])
+    )
+  }
+  utils::capture.output(print(table, row.names = FALSE, right = FALSE))
 }

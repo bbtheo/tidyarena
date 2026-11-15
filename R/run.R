@@ -10,15 +10,18 @@
 #' limit enforced by the kernel (a cgroup with swap disabled), so a task that
 #' overruns it is killed without pushing the machine into swap. On every
 #' platform a watchdog also kills a task that goes over budget, leaves less
-#' than 1 GB free, makes swap grow, or runs past the tier's timeout.
+#' than 1 GB free, makes swap grow, or runs past the tier's timeout. Loading
+#' the data into the backend has the tier's timeout of its own
+#' (`"setup_timeout"`).
 #'
 #' A task that fails at one size is not run at larger sizes on the same
 #' backend. Tasks predicted not to fit are skipped before they start.
 #'
 #' @section What is measured:
-#' For each repetition: wall time of the pipeline plus [dplyr::collect()],
-#' and peak resident memory of the process during it (exact on Linux,
-#' sampled every 0.1 seconds elsewhere). For each cell: whether it ran,
+#' For each repetition, twice: wall time and peak resident memory (exact on
+#' Linux, sampled every 0.1 seconds elsewhere) of the pipeline with
+#' [dplyr::collect()] and every value of the result read, and of the
+#' pipeline with [dplyr::compute()], the result kept in the backend. For each cell: whether it ran,
 #' whether a backend fell back to dplyr, whether its result matches dplyr's,
 #' how much it spilled to disk, and the versions of every loaded package.
 #'
@@ -159,10 +162,10 @@ arena_run <- function(
     } else if (pair %in% failed) {
       skipped_record(cell, "failed at a smaller size")
     } else {
-      if (is.null(data) || data$size != cell$size) {
-        data <- c(arena_data(cell$size), size = cell$size)
-      }
       task <- task_defs[task_defs$task == cell$task, ]
+      if (is.null(data) || data$size != cell$size || data$dataset != task$data) {
+        data <- c(arena_data(cell$size, dataset = task$data), size = cell$size, dataset = task$data)
+      }
       run_cell(
         cell,
         task,
@@ -206,6 +209,7 @@ skip_backends <- function(plan, skip) {
 failure_statuses <- c(
   "error",
   "setup_error",
+  "setup_timeout",
   "timeout",
   "oom_guard",
   "swap_guard",
@@ -222,9 +226,10 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
   spec <- list(
     code = task$code,
     order_key = task$order_key,
+    packages = unlist(task$packages),
     setup = backend$setup,
     teardown = backend$teardown,
-    data = data[c("df", "lookup")],
+    data = data$tables,
     reader_lib = reader_lib(),
     reps = settings$reps,
     budget_mb = floor(settings$budget / 2^20),
@@ -237,9 +242,10 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
     budget = settings$budget,
     timeout = settings$timeout * (settings$reps + 2),
     guard = run$guard,
-    log = file.path(dir, "logs", paste0(name, ".log"))
+    log = file.path(dir, "logs", paste0(name, ".log")),
+    setup_timeout = settings$timeout
   )
-  unlink(c(spec$out, sub("\\.rds$", "-spec.rds", spec$out)))
+  unlink(c(spec$out, sub("\\.rds$", "-spec.rds", spec$out), setup_marker(spec$out)))
 
   fallback <- backend$fallback_pattern
   if (
@@ -414,16 +420,21 @@ report_preflight <- function(env, plan, guard) {
 
 # Generated data must fit on disk with 1 GB to spare.
 check_disk <- function(plan, call = rlang::caller_env()) {
-  sizes <- unique(plan$size[plan$action == "run"])
+  run <- plan[plan$action == "run", ]
+  tasks <- arena_tasks()
+  needed <- unique(data.frame(size = run$size, dataset = tasks$data[match(run$task, tasks$task)]))
   dir <- arena_cache_dir()
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   cached <- file.exists(file.path(
-    dir,
-    paste0("gen", generator_version),
-    vapply(sizes, format_n, character(1)),
-    "df.parquet"
+    vapply(
+      seq_len(nrow(needed)),
+      function(i) dataset_dir(dir, needed$dataset[[i]], needed$size[[i]]),
+      character(1)
+    ),
+    "fingerprint.rds"
   ))
-  need <- sum(data_disk_bytes(sizes[!cached])) + 2^30
+  todo <- needed[!cached, ]
+  need <- sum(data_disk_bytes(todo$size, todo$dataset)) + 2^30
   free <- ps::ps_disk_usage(dir)$available[[1]]
   if (need > free) {
     cli::cli_abort(

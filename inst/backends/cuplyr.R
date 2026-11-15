@@ -12,11 +12,11 @@ list(
     compute_capability = "7.0",
     cuda = "12.2"
   ),
+  # Turns each table, `x`, named `name`, into the backend's form.
+  convert = "cuplyr::tbl_gpu(x)",
   setup = c(
     "library(dplyr)",
-    "library(cuplyr)",
-    "df <- cuplyr::tbl_gpu(df)",
-    "lookup <- cuplyr::tbl_gpu(lookup)"
+    "library(cuplyr)"
   ),
   # cuplyr is built from source against libcudf and the CUDA toolkit. Its
   # install.sh sets those up with pixi or conda, or uses the system's. That

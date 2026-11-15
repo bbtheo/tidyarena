@@ -22,11 +22,11 @@ read_def_file <- function(path) {
 
 task_fields <- list(
   required = c("family", "code"),
-  optional = c("order_key", "mem_factor", "twin")
+  optional = c("data", "packages", "order_key", "mem_factor", "twin")
 )
 
 backend_fields <- list(
-  required = c("packages", "setup"),
+  required = c("packages", "convert", "setup"),
   optional = c(
     "gpu",
     "mem_factor",
@@ -68,6 +68,7 @@ backend_defs <- function() {
   defs <- defs[union(anchor_backend, names(defs))]
   for (id in names(defs)) {
     def <- check_def(defs[[id]], id, "backends", backend_fields)
+    def$setup <- c(def$setup, paste0(".convert <- function(x, name) ", def$convert))
     if (!any(grepl("^\\s*\\.collect\\s*<-", def$setup))) {
       def$setup <- c(def$setup, ".collect <- function(x) dplyr::collect(x)")
     }
@@ -82,16 +83,19 @@ backend_defs <- function() {
 }
 
 # Task definitions with defaults filled in, followed by the `.by` twins of
-# the grouped tasks. A task without a memory factor gets 1;
-# arena_check_task() measures it.
+# the grouped tasks. A task without a memory factor gets 1 (arena_check_task()
+# measures it), and one without a data set gets tidyarena's own.
 task_defs <- function() {
   defs <- read_defs("tasks")
   twins <- list()
   for (id in names(defs)) {
     def <- check_def(defs[[id]], id, "tasks", task_fields)
     def$mem_factor <- def$mem_factor %||% 1
+    def$data <- def$data %||% "arena"
+    # A pipeline over several statements has no automatic .by form.
+    single <- length(parse(text = def$code, keep.source = FALSE)) == 1
     grouped <- grepl("group_by(", def$code, fixed = TRUE)
-    if (grouped && !isFALSE(def$twin)) {
+    if (grouped && single && !isFALSE(def$twin)) {
       def$idiom <- "group_by"
       twin <- def
       twin$code <- by_twin(def$code, id)

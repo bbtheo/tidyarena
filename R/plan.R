@@ -61,23 +61,47 @@ arena_plan <- function(
   )[c("size", "task", "backend")]
 
   defs <- backend_defs()
+  task_row <- match(cells$task, all_tasks$task)
+  dataset <- all_tasks$data[task_row]
+  bytes <- data_bytes(cells$size, dataset)
   backend_factor <- vapply(defs[cells$backend], `[[`, numeric(1), "mem_factor")
-  task_factor <- all_tasks$mem_factor[match(cells$task, all_tasks$task)]
-  cells$est_peak <- unname(
-    r_baseline_bytes + data_bytes(cells$size) * (1 + backend_factor * task_factor)
-  )
+  task_factor <- all_tasks$mem_factor[task_row]
+  cells$est_peak <- unname(r_baseline_bytes + bytes * (1 + backend_factor * task_factor))
 
   row <- match(cells$backend, all_backends$backend)
   cells$action <- "run"
   cells$reason <- NA_character_
   skip <- !all_backends$available[row]
   cells$reason[skip] <- all_backends$reason[row][skip]
+
+  datasets <- dataset_defs()
+  min_size <- vapply(datasets[dataset], `[[`, numeric(1), "min_size")
+  too_small <- !skip & cells$size < min_size
+  cells$reason[too_small] <- sprintf(
+    "no %s data at this size (needs %s rows)",
+    dataset[too_small],
+    vapply(min_size[too_small], format_n, character(1))
+  )
+  skip <- skip | too_small
+  missing <- vapply(
+    all_tasks$packages[task_row],
+    function(p) paste(p[!packages_installed(p, libpath)], collapse = ", "),
+    character(1)
+  )
+  needs <- !skip & nzchar(missing)
+  cells$reason[needs] <- paste("needs", missing[needs])
+  skip <- skip | needs
+  gen_factor <- vapply(datasets[dataset], `[[`, numeric(1), "gen_factor")
+  too_big <- !skip & bytes * gen_factor > budget
+  cells$reason[too_big] <- "data too large to generate in the memory budget"
+  skip <- skip | too_big
+
   over <- !skip & cells$est_peak > budget
   cells$reason[over] <- "over memory budget"
   gpu <- defs[cells$backend] |> vapply(`[[`, logical(1), "gpu") |> unname()
   if (any(gpu)) {
     vram <- gpu_info()[[1]]$memory %||% 0
-    gpu_peak <- data_bytes(cells$size) * (1 + backend_factor * task_factor)
+    gpu_peak <- bytes * (1 + backend_factor * task_factor)
     over_gpu <- !skip & !over & gpu & gpu_peak > 0.8 * vram
     cells$reason[over_gpu] <- "over GPU memory"
     over <- over | over_gpu

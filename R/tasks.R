@@ -1,14 +1,15 @@
 #' The benchmark tasks
 #'
 #' Every task is one dplyr pipeline, written once and run unchanged on every
-#' backend. A pipeline sees two tables: `df`, the main table, and `lookup`, a
-#' small dimension table keyed by `g_high`. See [arena_data()] for the
-#' columns. Each task is a file in the package's `tasks` folder; see
+#' backend, over the tables of one data set (see [arena_data()]): tidyarena's
+#' own `df` and `lookup`, db-benchmark's, or the TPC-H schema. Each task is a file in the package's `tasks` folder; see
 #' `vignette("extending")` to add one.
 #'
 #' @returns A tibble with one row per task:
 #'   * `task`: task id.
 #'   * `family`: the kind of operation, used to group results in reports.
+#'     The tasks from db-benchmark have the families `"dbbench-groupby"` and
+#'     `"dbbench-join"`, the ones derived from TPC-H `"tpch"`.
 #'   * `code`: the pipeline, as R code.
 #'   * `order_key`: for tasks whose row order is part of the answer, the
 #'     column whose sequence is checked; `NA` otherwise.
@@ -19,15 +20,18 @@
 #'     has the suffix `_by`), because some backends run only one of them.
 #'     `NA` for tasks without grouping. The `.by` forms are written by
 #'     tidyarena from the `group_by()` ones.
+#'   * `data`: the data set the task runs on.
+#'   * `packages`: packages the task's code uses besides those of the
+#'     backend, such as lubridate.
 #'   * `hash`: a hash of `code`. A task id always means the same code:
 #'     results with different hashes are never compared.
 #' @export
 #' @examples
 #' arena_tasks()
 arena_tasks <- function() {
-  tasks <- task_defs()
+  tasks <- unname_list(task_defs())
   tibble::tibble(
-    task = names(tasks),
+    task = attr(tasks, "ids"),
     family = vapply(tasks, `[[`, character(1), "family"),
     code = vapply(tasks, `[[`, character(1), "code"),
     order_key = vapply(
@@ -37,6 +41,14 @@ arena_tasks <- function() {
     ),
     mem_factor = vapply(tasks, `[[`, numeric(1), "mem_factor"),
     idiom = vapply(tasks, function(x) x$idiom %||% NA_character_, character(1)),
+    data = vapply(tasks, `[[`, character(1), "data"),
+    packages = unname(lapply(tasks, function(x) x$packages %||% character())),
     hash = vapply(tasks, function(x) task_hash(x$code), character(1))
   )
+}
+
+# The task list without names, so that the columns built from it have none.
+unname_list <- function(tasks) {
+  ids <- names(tasks)
+  structure(unname(tasks), ids = ids)
 }
