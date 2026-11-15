@@ -93,6 +93,11 @@ local({
   result$setup_seconds <- as.double(Sys.time() - t0, units = "secs")
   save_result()
 
+  # Messages from setup (package start-up notes) are kept apart from the
+  # task's, so that only the task's are checked for fallbacks.
+  result$setup_conditions <- conditions
+  conditions <- character()
+
   task <- parse(text = spec$code)
 
   fingerprint <- function(x) {

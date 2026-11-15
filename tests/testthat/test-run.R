@@ -38,3 +38,11 @@ test_that("arena_report() summarises a run", {
   expect_named(out, c("cells", "backends"))
   expect_equal(out$backends$coverage, 1)
 })
+
+test_that("scrub() removes the home directory and user name", {
+  msg <- paste("extensions are under", path.expand("~/.local/share/duckdb"))
+  expect_false(grepl(path.expand("~"), scrub(msg), fixed = TRUE))
+  expect_match(scrub(msg), "~/.local/share/duckdb", fixed = TRUE)
+  expect_identical(scrub(character()), character())
+  expect_identical(scrub(NA_character_), NA_character_)
+})

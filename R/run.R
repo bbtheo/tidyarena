@@ -188,13 +188,14 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
     backend = cell$backend,
     status = result$status %||% "crashed",
     reason = NA_character_,
-    error = truncate(result$error %||% NA_character_, 1000),
+    error = truncate(scrub(result$error %||% NA_character_), 1000),
     setup_seconds = result$setup_seconds %||% NA_real_,
     reps = result$reps %||% list(),
     peak_method = result$peak_method %||% NA_character_,
     poll_peak_rss = result$poll_peak_rss,
     spill_bytes = result$spill_bytes,
-    conditions = utils::head(truncate(result$conditions, 300), 20),
+    conditions = utils::head(truncate(scrub(result$conditions), 300), 20),
+    setup_conditions = utils::head(truncate(scrub(result$setup_conditions), 300), 20),
     fingerprint = result$fingerprint,
     data_fingerprint = data$fingerprint,
     versions = as.list(result$versions[backend_versions(result$versions, backend)])
@@ -338,6 +339,22 @@ check_disk <- function(plan, call = rlang::caller_env()) {
 
 format_time <- function(x) {
   format(x, "%Y-%m-%dT%H:%M:%S%z")
+}
+
+# Removes what could identify the user from messages: the home directory
+# and the user name.
+scrub <- function(x) {
+  if (length(x) == 0) {
+    return(x)
+  }
+  home <- normalizePath("~", winslash = "/", mustWork = FALSE)
+  x <- gsub(home, "~", x, fixed = TRUE)
+  x <- gsub(path.expand("~"), "~", x, fixed = TRUE)
+  user <- Sys.info()[["user"]]
+  if (nzchar(user) && nchar(user) > 2) {
+    x <- gsub(user, "<user>", x, fixed = TRUE)
+  }
+  x
 }
 
 truncate <- function(x, n) {
