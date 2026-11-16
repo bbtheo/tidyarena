@@ -69,7 +69,7 @@
 #' arena_report(run)
 #' }
 arena_run <- function(
-  tier = c("xs", "s", "m", "l"),
+  tier = c("xs", "s", "m", "l", "xl"),
   backends = NULL,
   tasks = NULL,
   sizes = NULL,

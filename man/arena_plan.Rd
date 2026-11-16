@@ -5,7 +5,7 @@
 \title{Plan a benchmark run}
 \usage{
 arena_plan(
-  tier = c("xs", "s", "m", "l"),
+  tier = c("xs", "s", "m", "l", "xl"),
   backends = NULL,
   tasks = NULL,
   sizes = NULL,
@@ -14,7 +14,7 @@ arena_plan(
 )
 }
 \arguments{
-\item{tier}{The run's size: \code{"xs"}, \code{"s"}, \code{"m"} or \code{"l"}.}
+\item{tier}{The run's size: \code{"xs"}, \code{"s"}, \code{"m"}, \code{"l"} or \code{"xl"}.}
 
 \item{backends}{Backend ids to run, see \code{\link[=arena_backends]{arena_backends()}}. Defaults to
 every available backend, except those left out with \code{\link[=arena_config]{arena_config()}}.
@@ -45,10 +45,11 @@ misses.
 \section{Tiers}{
 
 \itemize{
-\item \code{"m"}: every task at 1e6, 1e7 and 1e8 rows, 5 timed repetitions.
+\item \code{"m"}: every task at 1e6, 1e7 and 1e8 rows, 3 timed repetitions.
 \item \code{"s"}: a quarter of the tasks, run as in \code{"m"}.
 \item \code{"xs"}: an eighth of the tasks, run as in \code{"m"}.
-\item \code{"l"}: every task at 1e6 to 1e9 rows, 5 timed repetitions.
+\item \code{"l"}: every task at 1e6 to 1e9 rows, 3 timed repetitions.
+\item \code{"xl"}: as \code{"l"}, with 5 timed repetitions.
 }
 
 Every cell also runs one untimed warm-up first, recorded separately.
