@@ -10,11 +10,11 @@
 #' The tasks are split into four parts with similar run times and a similar
 #' mix of data sets (see the `part` column of [arena_tasks()]).
 #'
-#' * `"xs"`: one part, at 1e6 and 1e7 rows.
-#' * `"s"`: one part, at 1e6, 1e7 and 1e8 rows.
-#' * `"m"`: two parts, at 1e6, 1e7 and 1e8 rows.
-#' * `"l"`: every task, at 1e6, 1e7 and 1e8 rows.
-#' * `"xl"`: every task, at 1e6 to 1e9 rows.
+#' * `"xs"`: one part, at 1e6 rows.
+#' * `"s"`: one part, at 1e6 and 1e7 rows.
+#' * `"m"`: two parts, at 1e6 and 1e7 rows.
+#' * `"l"`: every task, at 1e6 and 1e7 rows.
+#' * `"xl"`: every task, at 1e6, 1e7 and 1e8 rows.
 #'
 #' Every cell runs one untimed warm-up and three timed repetitions, and how
 #' it runs depends only on its task, backend and size: the tier only decides
@@ -151,11 +151,11 @@ r_baseline_bytes <- 300 * 2^20
 tier_settings <- function(tier) {
   switch(
     tier,
-    xs = list(sizes = c(1e6, 1e7), parts = 1L),
-    s = list(sizes = c(1e6, 1e7, 1e8), parts = 1L),
-    m = list(sizes = c(1e6, 1e7, 1e8), parts = 2L),
-    l = list(sizes = c(1e6, 1e7, 1e8), parts = 4L),
-    xl = list(sizes = c(1e6, 1e7, 1e8, 1e9), parts = 4L)
+    xs = list(sizes = 1e6, parts = 1L),
+    s = list(sizes = c(1e6, 1e7), parts = 1L),
+    m = list(sizes = c(1e6, 1e7), parts = 2L),
+    l = list(sizes = c(1e6, 1e7), parts = 4L),
+    xl = list(sizes = c(1e6, 1e7, 1e8), parts = 4L)
   )
 }
 

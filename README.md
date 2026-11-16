@@ -72,8 +72,8 @@ arena_report(run)
 
 Runs come in t-shirt sizes. The tasks are split into four parts with
 similar run times and a similar mix of data sets. `"xs"` runs one part at
-1e6 and 1e7 rows, `"s"` one part and `"m"` two parts at up to 1e8 rows,
-`"l"` every task at up to 1e8 rows and `"xl"` every task at up to 1e9.
+1e6 rows, `"s"` one part and `"m"` two parts at 1e6 and 1e7 rows, `"l"`
+every task at 1e6 and 1e7 rows, and `"xl"` every task at up to 1e8 rows.
 Each run takes the parts this machine has run least often, so four s runs
 or two m runs give the same cells as one l run: every cell runs one
 warm-up and three timed repetitions, the same in every tier.

@@ -1,7 +1,7 @@
 test_that("arena_plan() always includes the anchor", {
   plan <- arena_plan("l", backends = character(), budget = 1e12)
   expect_setequal(unique(plan$backend), anchor_backend)
-  expect_setequal(unique(plan$size), c(1e6, 1e7, 1e8))
+  expect_setequal(unique(plan$size), c(1e6, 1e7))
   expect_setequal(unique(plan$task), arena_tasks()$task)
 })
 
@@ -77,7 +77,7 @@ test_that("successive runs cover every part before any repeats", {
 test_that("part_counts() counts finished runs of whole parts at the sizes, with unchanged tasks", {
   dir <- withr::local_tempdir()
   tasks <- arena_tasks()
-  write_run <- function(id, parts, sizes = c(1e6, 1e7, 1e8), finished = "2026-01-01", stale = character()) {
+  write_run <- function(id, parts, sizes = c(1e6, 1e7), finished = "2026-01-01", stale = character()) {
     hashes <- stats::setNames(tasks$hash, tasks$task)[tasks$part %in% parts]
     hashes[names(hashes) %in% stale] <- "old"
     run <- list(suite_version = suite_version, sizes = sizes, finished = finished, task_hashes = as.list(hashes))
@@ -86,10 +86,10 @@ test_that("part_counts() counts finished runs of whole parts at the sizes, with 
   }
   write_run("a", 1)
   write_run("b", 1:2)
-  write_run("c", 1:4, sizes = c(1e6, 1e7, 1e8, 1e9))
+  write_run("c", 1:4, sizes = c(1e6, 1e7, 1e8))
   write_run("d", 3, finished = NULL)
   write_run("e", 4, stale = tasks$task[tasks$part == 4][1])
-  write_run("f", 3, sizes = c(1e6, 1e7))
-  expect_equal(part_counts(c(1e6, 1e7, 1e8), dir), c(3L, 2L, 1L, 1L))
-  expect_equal(part_counts(c(1e6, 1e7), dir), c(3L, 2L, 2L, 1L))
+  write_run("f", 3, sizes = 1e6)
+  expect_equal(part_counts(c(1e6, 1e7), dir), c(3L, 2L, 1L, 1L))
+  expect_equal(part_counts(1e6, dir), c(3L, 2L, 2L, 1L))
 })

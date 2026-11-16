@@ -52,11 +52,11 @@ misses.
 The tasks are split into four parts with similar run times and a similar
 mix of data sets (see the \code{part} column of \code{\link[=arena_tasks]{arena_tasks()}}).
 \itemize{
-\item \code{"xs"}: one part, at 1e6 and 1e7 rows.
-\item \code{"s"}: one part, at 1e6, 1e7 and 1e8 rows.
-\item \code{"m"}: two parts, at 1e6, 1e7 and 1e8 rows.
-\item \code{"l"}: every task, at 1e6, 1e7 and 1e8 rows.
-\item \code{"xl"}: every task, at 1e6 to 1e9 rows.
+\item \code{"xs"}: one part, at 1e6 rows.
+\item \code{"s"}: one part, at 1e6 and 1e7 rows.
+\item \code{"m"}: two parts, at 1e6 and 1e7 rows.
+\item \code{"l"}: every task, at 1e6 and 1e7 rows.
+\item \code{"xl"}: every task, at 1e6, 1e7 and 1e8 rows.
 }
 
 Every cell runs one untimed warm-up and three timed repetitions, and how
