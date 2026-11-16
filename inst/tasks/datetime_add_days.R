@@ -1,6 +1,7 @@
 # Add days to a date and filter on the result.
 list(
   family = "datetime",
+  part = 1L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(

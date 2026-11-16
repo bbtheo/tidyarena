@@ -1,6 +1,7 @@
 # The last day of each date's month, with ceiling_date().
 list(
   family = "datetime",
+  part = 2L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(

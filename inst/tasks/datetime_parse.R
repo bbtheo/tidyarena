@@ -1,6 +1,7 @@
 # Parse timestamps from strings with ymd_hms().
 list(
   family = "datetime",
+  part = 3L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(

@@ -1,6 +1,7 @@
 # Full join, then a count of the rows matched on both sides.
 list(
   family = "join",
+  part = 1L,
   data = "joins",
   code = r"(
 events |>

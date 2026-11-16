@@ -1,6 +1,7 @@
 # Count by weekday and hour.
 list(
   family = "datetime",
+  part = 4L,
   data = "datetimes",
   packages = "lubridate",
   code = "log |> count(weekday = wday(ts, week_start = 1), hour = hour(ts))",

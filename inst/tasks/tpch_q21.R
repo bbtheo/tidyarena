@@ -7,6 +7,7 @@
 # year() is lubridate::year().
 list(
   family = "tpch",
+  part = 3L,
   data = "tpch",
   code = r"(
 orders_with_more_than_one_supplier <- lineitem |>

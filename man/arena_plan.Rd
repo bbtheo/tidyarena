@@ -10,7 +10,8 @@ arena_plan(
   tasks = NULL,
   sizes = NULL,
   budget = NULL,
-  libpath = default_libpath()
+  libpath = default_libpath(),
+  part = NULL
 )
 }
 \arguments{
@@ -20,7 +21,8 @@ arena_plan(
 every available backend, except those left out with \code{\link[=arena_config]{arena_config()}}.
 The anchor backend, dplyr, is always included.}
 
-\item{tasks}{Task ids to run, see \code{\link[=arena_tasks]{arena_tasks()}}. Defaults to all.}
+\item{tasks}{Task ids to run, see \code{\link[=arena_tasks]{arena_tasks()}}. Defaults to the
+tier's parts.}
 
 \item{sizes}{Row counts. Defaults to the tier's sizes. Runs with other
 sizes are not comparable with other machines.}
@@ -30,6 +32,9 @@ available memory, leaving at least 2 GB free.}
 
 \item{libpath}{Library paths the backends are loaded from. Defaults to
 the session's library paths, followed by \code{\link[=arena_lib]{arena_lib()}} when it exists.}
+
+\item{part}{Parts of the suite to run, from 1 to 4, instead of the ones
+the tier would pick.}
 }
 \value{
 A tibble with one row per cell: \code{size}, \code{task}, \code{backend},
@@ -44,11 +49,14 @@ misses.
 }
 \section{Tiers}{
 
+The tasks are split into four parts with similar run times and a similar
+mix of data sets (see the \code{part} column of \code{\link[=arena_tasks]{arena_tasks()}}).
 \itemize{
-\item \code{"l"}: every task at 1e6, 1e7 and 1e8 rows.
-\item \code{"m"}, \code{"s"} and \code{"xs"}: a half, a quarter and an eighth of the tasks,
-run as in \code{"l"}.
-\item \code{"xl"}: every task at 1e6 to 1e9 rows.
+\item \code{"xs"}: one part, at 1e6 and 1e7 rows.
+\item \code{"s"}: one part, at 1e6, 1e7 and 1e8 rows.
+\item \code{"m"}: two parts, at 1e6, 1e7 and 1e8 rows.
+\item \code{"l"}: every task, at 1e6, 1e7 and 1e8 rows.
+\item \code{"xl"}: every task, at 1e6 to 1e9 rows.
 }
 
 Every cell runs one untimed warm-up and three timed repetitions, and how
@@ -56,12 +64,12 @@ it runs depends only on its task, backend and size: the tier only decides
 which cells run, and is not recorded. Two m runs give the same cells as one
 l run.
 
-\code{"xs"}, \code{"s"} and \code{"m"} take the tasks this machine has run least often
-at every size of \code{"l"}, in finished runs in the default run directory, so
-two m runs, four s runs or eight xs runs in a row cover the tasks of one l
-run. The order is fixed for each machine, so \code{arena_plan()} shows the
-tasks \code{\link[=arena_run]{arena_run()}} would run, and different machines start with
-different tasks. With \code{tasks} given, those tasks run.
+Unless \code{part} is given, a run takes the parts this machine has run least
+often at the tier's sizes, in finished runs in the default run directory,
+so four s runs or two m runs in a row cover the tasks of one l run. The
+order is fixed for each machine, so \code{arena_plan()} shows the parts
+\code{\link[=arena_run]{arena_run()}} would run, and different machines start with different
+parts.
 }
 
 \examples{

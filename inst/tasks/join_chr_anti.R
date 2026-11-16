@@ -1,6 +1,7 @@
 # Anti join on a string key.
 list(
   family = "join",
+  part = 1L,
   data = "joins",
   code = r"(
 events |>

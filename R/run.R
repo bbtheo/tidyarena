@@ -10,9 +10,10 @@
 #' limit enforced by the kernel (a cgroup with swap disabled), so a task that
 #' overruns it is killed without pushing the machine into swap. On every
 #' platform a watchdog also kills a task that goes over budget, leaves less
-#' than 1 GB free, makes swap grow, or runs past its timeout: 600 seconds a
-#' repetition up to 1e8 rows, 1800 seconds at 1e9 rows. Loading the data into
-#' the backend has a timeout of the same length (`"setup_timeout"`).
+#' than 1 GB free, makes swap grow, or runs past its timeout, which depends on
+#' the size: 120 seconds a repetition at 1e6 rows, 300 at 1e7, 600 at 1e8
+#' and 1800 at 1e9. Loading the data into the backend has a timeout of the
+#' same length (`"setup_timeout"`).
 #'
 #' A task that fails at one size is not run at larger sizes on the same
 #' backend. Tasks predicted not to fit are skipped before they start.
@@ -76,7 +77,8 @@ arena_run <- function(
   budget = NULL,
   libpath = default_libpath(),
   install = c("ask", "missing", "update", "never"),
-  dir = NULL
+  dir = NULL,
+  part = NULL
 ) {
   tier <- rlang::arg_match(tier)
   install <- rlang::arg_match(install)
@@ -84,7 +86,7 @@ arena_run <- function(
   resuming <- !is.null(dir) && file.exists(file.path(dir, "run.json"))
   if (resuming) {
     run <- read_run_json(dir)
-    check_resume(run, backends, tasks, sizes)
+    check_resume(run, backends, tasks, sizes, part)
     check_task_hashes(run)
     prefer <- run$prefer %||% "session"
     if (!libpath_given) {
@@ -106,7 +108,7 @@ arena_run <- function(
     } else if (arena_lib() %in% libpath) {
       offer_installs(backends, install, libpath)
     }
-    plan <- arena_plan(tier, backends, tasks, sizes, budget, libpath)
+    plan <- arena_plan(tier, backends, tasks, sizes, budget, libpath, part)
     checked <- preflight(
       unique(plan$backend[plan$action == "run"]),
       prefer,
@@ -116,7 +118,7 @@ arena_run <- function(
     if (!identical(checked$prefer, prefer)) {
       prefer <- checked$prefer
       libpath <- checked$libpath
-      plan <- arena_plan(tier, backends, tasks, sizes, budget, libpath)
+      plan <- arena_plan(tier, backends, tasks, sizes, budget, libpath, part)
     }
     plan <- skip_backends(plan, checked$skip)
     check_disk(plan)
@@ -364,8 +366,8 @@ new_run <- function(dir, plan, prefer = "session", diagnostics = list()) {
   run
 }
 
-check_resume <- function(run, backends, tasks, sizes, call = rlang::caller_env()) {
-  given <- list(backends = backends, tasks = tasks, sizes = sizes)
+check_resume <- function(run, backends, tasks, sizes, part, call = rlang::caller_env()) {
+  given <- list(backends = backends, tasks = tasks, sizes = sizes, part = part)
   given <- given[!vapply(given, is.null, logical(1))]
   if (length(given) > 0) {
     cli::cli_abort(

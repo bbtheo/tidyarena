@@ -81,6 +81,7 @@ are.
 # Grouped median, which few engines compute without sorting.
 list(
   family = "summarise",
+  part = 2L,
   code = 'df |> group_by(g_low) |> summarise(med = median(x), .groups = "drop")',
   mem_factor = 0.5
 )
@@ -90,6 +91,10 @@ list(
   backend. A backend that can't run it fails it, and that is a result.
 * `family` groups tasks in reports: `filter`, `mutate`, `summarise`, `join`,
   `window`, `arrange`, `distinct`, `string`, or a new one.
+* `part`: which of the four parts of the suite, 1 to 4, the task is in.
+  Smaller runs run one or two parts, so the parts should take similar time
+  and mix the data sets: put a new task in the part with the fewest tasks
+  from its data set, or the fewest tasks as heavy as it.
 * `data` (default `"arena"`): the data set, one of `"dbbench_groupby"`,
   `"dbbench_join"`, `"joins"`, `"strings"`, `"datetimes"` or `"tpch"` for
   the others; see `arena_data()` for their tables.

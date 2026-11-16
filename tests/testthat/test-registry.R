@@ -18,9 +18,14 @@ test_that("backends get default fields", {
 test_that("definition files are validated", {
   expect_snapshot(error = TRUE, {
     check_def(list(code = "df"), "bad", "tasks", task_fields)
-    check_def(list(family = "f", code = "df", memfactor = 1), "bad", "tasks", task_fields)
+    check_def(list(family = "f", part = 1L, code = "df", memfactor = 1), "bad", "tasks", task_fields)
     check_def("df", "bad", "tasks", task_fields)
   })
+})
+
+test_that("a task's part is checked", {
+  local_mocked_bindings(read_defs = function(kind) list(bad = list(family = "f", part = 5L, code = "df")))
+  expect_snapshot(task_defs(), error = TRUE)
 })
 
 test_that("a task file can use tidyarena's internals", {
@@ -60,7 +65,7 @@ test_that("by_twin() refuses pipelines it can't rewrite", {
 test_that("a task can opt out of its twin", {
   dir <- withr::local_tempdir()
   writeLines(
-    "list(family = 'f', code = 'df |> group_by(g) |> arrange(x)', twin = FALSE)",
+    "list(family = 'f', part = 1L, code = 'df |> group_by(g) |> arrange(x)', twin = FALSE)",
     file.path(dir, "sorted.R")
   )
   local_mocked_bindings(read_defs = function(kind) list(sorted = read_def_file(file.path(dir, "sorted.R"))))

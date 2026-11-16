@@ -1,6 +1,7 @@
 # Group by the domain of an email, removed with a regular expression.
 list(
   family = "string",
+  part = 3L,
   data = "strings",
   packages = "stringr",
   code = r"(

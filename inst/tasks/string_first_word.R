@@ -1,6 +1,7 @@
 # Group by the first word of a cleaned name.
 list(
   family = "string",
+  part = 1L,
   data = "strings",
   packages = "stringr",
   code = r"(

@@ -1,6 +1,7 @@
 # Grouped lag() ordered by id.
 list(
   family = "window",
+  part = 2L,
   code = paste(
     "df |> group_by(g_low) |> mutate(dx = x - lag(x, order_by = id)) |>",
     "ungroup() |> summarise(s = sum(dx, na.rm = TRUE))"

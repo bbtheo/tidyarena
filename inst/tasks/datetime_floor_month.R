@@ -1,6 +1,7 @@
 # Group by month with floor_date().
 list(
   family = "datetime",
+  part = 3L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(

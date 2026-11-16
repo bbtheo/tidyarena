@@ -7,6 +7,7 @@
 # year() is lubridate::year().
 list(
   family = "tpch",
+  part = 2L,
   data = "tpch",
   code = r"(
 parts_filtered <- part |>

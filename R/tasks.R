@@ -10,6 +10,10 @@
 #'   * `family`: the kind of operation, used to group results in reports.
 #'     The tasks from db-benchmark have the families `"dbbench-groupby"` and
 #'     `"dbbench-join"`, the ones derived from TPC-H `"tpch"`.
+#'   * `part`: which of the four parts of the suite the task is in, 1 to 4.
+#'     The `"xs"`, `"s"` and `"m"` tiers of [arena_plan()] run one or two
+#'     parts. The parts have similar run times and a similar mix of data
+#'     sets; a `.by` form is in the part of its `group_by()` form.
 #'   * `code`: the pipeline, as R code.
 #'   * `order_key`: for tasks whose row order is part of the answer, the
 #'     column whose sequence is checked; `NA` otherwise.
@@ -33,6 +37,7 @@ arena_tasks <- function() {
   tibble::tibble(
     task = attr(tasks, "ids"),
     family = vapply(tasks, `[[`, character(1), "family"),
+    part = vapply(tasks, `[[`, integer(1), "part"),
     code = vapply(tasks, `[[`, character(1), "code"),
     order_key = vapply(
       tasks,

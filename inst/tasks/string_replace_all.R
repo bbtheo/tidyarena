@@ -1,6 +1,7 @@
 # Replace every vowel in free text, then measure it.
 list(
   family = "string",
+  part = 4L,
   data = "strings",
   packages = "stringr",
   code = r"(

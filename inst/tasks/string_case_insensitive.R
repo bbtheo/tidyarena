@@ -1,6 +1,7 @@
 # Filter on a case-insensitive regular expression.
 list(
   family = "string",
+  part = 1L,
   data = "strings",
   packages = "stringr",
   code = r"(

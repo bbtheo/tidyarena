@@ -1,6 +1,7 @@
 # Non-equi join: the value band each event falls in.
 list(
   family = "join",
+  part = 3L,
   data = "joins",
   code = r"(
 events |>

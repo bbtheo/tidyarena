@@ -7,6 +7,7 @@
 # year() is lubridate::year().
 list(
   family = "tpch",
+  part = 1L,
   data = "tpch",
   code = r"(
 lineitem |>

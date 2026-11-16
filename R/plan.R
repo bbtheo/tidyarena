@@ -7,34 +7,41 @@
 #' misses.
 #'
 #' @section Tiers:
-#' * `"l"`: every task at 1e6, 1e7 and 1e8 rows.
-#' * `"m"`, `"s"` and `"xs"`: a half, a quarter and an eighth of the tasks,
-#'   run as in `"l"`.
-#' * `"xl"`: every task at 1e6 to 1e9 rows.
+#' The tasks are split into four parts with similar run times and a similar
+#' mix of data sets (see the `part` column of [arena_tasks()]).
+#'
+#' * `"xs"`: one part, at 1e6 and 1e7 rows.
+#' * `"s"`: one part, at 1e6, 1e7 and 1e8 rows.
+#' * `"m"`: two parts, at 1e6, 1e7 and 1e8 rows.
+#' * `"l"`: every task, at 1e6, 1e7 and 1e8 rows.
+#' * `"xl"`: every task, at 1e6 to 1e9 rows.
 #'
 #' Every cell runs one untimed warm-up and three timed repetitions, and how
 #' it runs depends only on its task, backend and size: the tier only decides
 #' which cells run, and is not recorded. Two m runs give the same cells as one
 #' l run.
 #'
-#' `"xs"`, `"s"` and `"m"` take the tasks this machine has run least often
-#' at every size of `"l"`, in finished runs in the default run directory, so
-#' two m runs, four s runs or eight xs runs in a row cover the tasks of one l
-#' run. The order is fixed for each machine, so `arena_plan()` shows the
-#' tasks [arena_run()] would run, and different machines start with
-#' different tasks. With `tasks` given, those tasks run.
+#' Unless `part` is given, a run takes the parts this machine has run least
+#' often at the tier's sizes, in finished runs in the default run directory,
+#' so four s runs or two m runs in a row cover the tasks of one l run. The
+#' order is fixed for each machine, so `arena_plan()` shows the parts
+#' [arena_run()] would run, and different machines start with different
+#' parts.
 #'
 #' @param tier The run's size: `"xs"`, `"s"`, `"m"`, `"l"` or `"xl"`.
 #' @param backends Backend ids to run, see [arena_backends()]. Defaults to
 #'   every available backend, except those left out with [arena_config()].
 #'   The anchor backend, dplyr, is always included.
-#' @param tasks Task ids to run, see [arena_tasks()]. Defaults to all.
+#' @param tasks Task ids to run, see [arena_tasks()]. Defaults to the
+#'   tier's parts.
 #' @param sizes Row counts. Defaults to the tier's sizes. Runs with other
 #'   sizes are not comparable with other machines.
 #' @param budget Most memory one task may use, in bytes. Defaults to 70% of
 #'   available memory, leaving at least 2 GB free.
 #' @param libpath Library paths the backends are loaded from. Defaults to
 #'   the session's library paths, followed by [arena_lib()] when it exists.
+#' @param part Parts of the suite to run, from 1 to 4, instead of the ones
+#'   the tier would pick.
 #' @returns A tibble with one row per cell: `size`, `task`, `backend`,
 #'   `est_peak` (bytes), `action` (`"run"` or `"skip"`) and `reason`.
 #' @export
@@ -46,7 +53,8 @@ arena_plan <- function(
   tasks = NULL,
   sizes = NULL,
   budget = NULL,
-  libpath = default_libpath()
+  libpath = default_libpath(),
+  part = NULL
 ) {
   tier <- rlang::arg_match(tier)
   settings <- tier_settings(tier)
@@ -62,10 +70,13 @@ arena_plan <- function(
   backends <- union(anchor_backend, backends)
   all_tasks <- arena_tasks()
   if (is.null(tasks)) {
-    tasks <- all_tasks$task
-    if (settings$share < 1) {
-      tasks <- sample_tasks(tasks, settings$share)
+    if (is.null(part)) {
+      part <- if (settings$parts < n_parts) pick_parts(settings$parts, sizes) else seq_len(n_parts)
     }
+    part <- check_part(part)
+    tasks <- all_tasks$task[all_tasks$part %in% part]
+  } else if (!is.null(part)) {
+    cli::cli_abort("Give {.arg tasks} or {.arg part}, not both.")
   }
   tasks <- check_ids(tasks, all_tasks$task, "tasks")
 
@@ -140,11 +151,11 @@ r_baseline_bytes <- 300 * 2^20
 tier_settings <- function(tier) {
   switch(
     tier,
-    xs = list(sizes = c(1e6, 1e7, 1e8), share = 1 / 8),
-    s = list(sizes = c(1e6, 1e7, 1e8), share = 1 / 4),
-    m = list(sizes = c(1e6, 1e7, 1e8), share = 1 / 2),
-    l = list(sizes = c(1e6, 1e7, 1e8), share = 1),
-    xl = list(sizes = c(1e6, 1e7, 1e8, 1e9), share = 1)
+    xs = list(sizes = c(1e6, 1e7), parts = 1L),
+    s = list(sizes = c(1e6, 1e7, 1e8), parts = 1L),
+    m = list(sizes = c(1e6, 1e7, 1e8), parts = 2L),
+    l = list(sizes = c(1e6, 1e7, 1e8), parts = 4L),
+    xl = list(sizes = c(1e6, 1e7, 1e8, 1e9), parts = 4L)
   )
 }
 
@@ -152,7 +163,7 @@ arena_reps <- 3L
 
 # Seconds one repetition, or loading the data, may take.
 size_timeout <- function(size) {
-  if (size > 1e8) 1800 else 600
+  if (size <= 1e6) 120 else if (size <= 1e7) 300 else if (size <= 1e8) 600 else 1800
 }
 
 check_ids <- function(x, valid, arg, call = rlang::caller_env()) {
@@ -167,6 +178,13 @@ check_ids <- function(x, valid, arg, call = rlang::caller_env()) {
     )
   }
   x
+}
+
+check_part <- function(part, call = rlang::caller_env()) {
+  if (!is.numeric(part) || length(part) == 0 || anyNA(part) || !all(part %in% seq_len(n_parts))) {
+    cli::cli_abort("{.arg part} must be whole numbers from 1 to {n_parts}.", call = call)
+  }
+  sort(unique(as.integer(part)))
 }
 
 check_size <- function(n, call = rlang::caller_env()) {

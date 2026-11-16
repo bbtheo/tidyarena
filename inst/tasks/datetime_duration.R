@@ -1,6 +1,7 @@
 # Duration between two timestamps with difftime().
 list(
   family = "datetime",
+  part = 3L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(

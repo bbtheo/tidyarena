@@ -1,6 +1,7 @@
 # Count by week (starting on Monday) with floor_date() on dates.
 list(
   family = "datetime",
+  part = 4L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(

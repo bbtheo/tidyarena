@@ -12,7 +12,8 @@ arena_run(
   budget = NULL,
   libpath = default_libpath(),
   install = c("ask", "missing", "update", "never"),
-  dir = NULL
+  dir = NULL,
+  part = NULL
 )
 }
 \arguments{
@@ -22,7 +23,8 @@ arena_run(
 every available backend, except those left out with \code{\link[=arena_config]{arena_config()}}.
 The anchor backend, dplyr, is always included.}
 
-\item{tasks}{Task ids to run, see \code{\link[=arena_tasks]{arena_tasks()}}. Defaults to all.}
+\item{tasks}{Task ids to run, see \code{\link[=arena_tasks]{arena_tasks()}}. Defaults to the
+tier's parts.}
 
 \item{sizes}{Row counts. Defaults to the tier's sizes. Runs with other
 sizes are not comparable with other machines.}
@@ -44,6 +46,9 @@ binary are compiled.}
 \item{dir}{Directory for the results. Defaults to a new directory under
 \code{\link[tools:R_user_dir]{tools::R_user_dir()}}. Pass the directory of an earlier run to resume
 it.}
+
+\item{part}{Parts of the suite to run, from 1 to 4, instead of the ones
+the tier would pick.}
 }
 \value{
 The results, as returned by \code{\link[=arena_read]{arena_read()}}, invisibly.
@@ -60,9 +65,10 @@ Each task gets a memory budget. On Linux with systemd the budget is a hard
 limit enforced by the kernel (a cgroup with swap disabled), so a task that
 overruns it is killed without pushing the machine into swap. On every
 platform a watchdog also kills a task that goes over budget, leaves less
-than 1 GB free, makes swap grow, or runs past its timeout: 600 seconds a
-repetition up to 1e8 rows, 1800 seconds at 1e9 rows. Loading the data into
-the backend has a timeout of the same length (\code{"setup_timeout"}).
+than 1 GB free, makes swap grow, or runs past its timeout, which depends on
+the size: 120 seconds a repetition at 1e6 rows, 300 at 1e7, 600 at 1e8
+and 1800 at 1e9. Loading the data into the backend has a timeout of the
+same length (\code{"setup_timeout"}).
 
 A task that fails at one size is not run at larger sizes on the same
 backend. Tasks predicted not to fit are skipped before they start.

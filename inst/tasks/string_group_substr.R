@@ -1,6 +1,7 @@
 # Group by a substring computed with base substr().
 list(
   family = "string",
+  part = 1L,
   data = "strings",
   code = r"(
 customers |>

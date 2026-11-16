@@ -1,6 +1,7 @@
 # Non-equi join on a key and a time range, overlapping windows.
 list(
   family = "join",
+  part = 3L,
   data = "joins",
   code = r"(
 events |>

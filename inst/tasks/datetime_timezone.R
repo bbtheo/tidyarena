@@ -1,6 +1,7 @@
 # Convert to another time zone with with_tz() and count by local hour.
 list(
   family = "datetime",
+  part = 4L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(

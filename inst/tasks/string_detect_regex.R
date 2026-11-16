@@ -1,6 +1,7 @@
 # Filter on a regular expression anchored at the end.
 list(
   family = "string",
+  part = 2L,
   data = "strings",
   packages = "stringr",
   code = r"(

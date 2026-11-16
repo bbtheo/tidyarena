@@ -31,8 +31,15 @@ arena_report <- function(x) {
   cli::cli_h1("tidyarena run {.val {x$run$run_id}}")
   cli::cli_text(machine_line(x$run$env))
   n_tasks <- length(x$run$tasks)
-  if (n_tasks < nrow(arena_tasks())) {
-    cli::cli_text("{n_tasks} of the {nrow(arena_tasks())} tasks.")
+  all_tasks <- arena_tasks()
+  if (n_tasks < nrow(all_tasks)) {
+    parts <- unique(all_tasks$part[all_tasks$task %in% unlist(x$run$tasks)])
+    whole <- sort(parts[vapply(parts, function(p) all(all_tasks$task[all_tasks$part == p] %in% unlist(x$run$tasks)), logical(1))])
+    if (length(whole) > 0 && n_tasks == sum(all_tasks$part %in% whole)) {
+      cli::cli_text("Part{?s} {whole} of the suite: {n_tasks} of the {nrow(all_tasks)} tasks.")
+    } else {
+      cli::cli_text("{n_tasks} of the {nrow(all_tasks)} tasks.")
+    }
   }
   notes <- setting_notes(x$run$env)
   if (length(notes) > 0) {

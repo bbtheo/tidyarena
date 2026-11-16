@@ -1,6 +1,7 @@
 # Build a key from two substrings and count it.
 list(
   family = "string",
+  part = 4L,
   data = "strings",
   packages = "stringr",
   code = r"(

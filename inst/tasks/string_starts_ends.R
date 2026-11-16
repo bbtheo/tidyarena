@@ -1,6 +1,7 @@
 # Filter on how strings start and end.
 list(
   family = "string",
+  part = 3L,
   data = "strings",
   packages = "stringr",
   code = r"(

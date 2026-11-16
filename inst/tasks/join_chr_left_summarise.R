@@ -1,6 +1,7 @@
 # Left join on a string key, then a grouped summary.
 list(
   family = "join",
+  part = 2L,
   data = "joins",
   code = r"(
 events |>

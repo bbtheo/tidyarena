@@ -4,6 +4,7 @@
 # so that it has a .by form.
 list(
   family = "dbbench-groupby",
+  part = 4L,
   data = "dbbench_groupby",
   code = r"(
 x |>

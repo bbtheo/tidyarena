@@ -21,7 +21,7 @@ read_def_file <- function(path) {
 }
 
 task_fields <- list(
-  required = c("family", "code"),
+  required = c("family", "part", "code"),
   optional = c("data", "packages", "order_key", "mem_factor", "twin")
 )
 
@@ -107,6 +107,10 @@ task_defs <- function() {
   twins <- list()
   for (id in names(defs)) {
     def <- check_def(defs[[id]], id, "tasks", task_fields)
+    if (!isTRUE(def$part %in% seq_len(n_parts))) {
+      cli::cli_abort("Task {.val {id}}: {.field part} must be a whole number from 1 to {n_parts}.")
+    }
+    def$part <- as.integer(def$part)
     def$mem_factor <- def$mem_factor %||% 1
     def$data <- def$data %||% "arena"
     # A pipeline over several statements has no automatic .by form.

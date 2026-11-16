@@ -13,6 +13,10 @@ A tibble with one row per task:
 \item \code{family}: the kind of operation, used to group results in reports.
 The tasks from db-benchmark have the families \code{"dbbench-groupby"} and
 \code{"dbbench-join"}, the ones derived from TPC-H \code{"tpch"}.
+\item \code{part}: which of the four parts of the suite the task is in, 1 to 4.
+The \code{"xs"}, \code{"s"} and \code{"m"} tiers of \code{\link[=arena_plan]{arena_plan()}} run one or two
+parts. The parts have similar run times and a similar mix of data
+sets; a \code{.by} form is in the part of its \code{group_by()} form.
 \item \code{code}: the pipeline, as R code.
 \item \code{order_key}: for tasks whose row order is part of the answer, the
 column whose sequence is checked; \code{NA} otherwise.

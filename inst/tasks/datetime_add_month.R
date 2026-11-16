@@ -1,6 +1,7 @@
 # Add a month to a date with +, which gives NA where the day doesn't exist.
 list(
   family = "datetime",
+  part = 2L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(

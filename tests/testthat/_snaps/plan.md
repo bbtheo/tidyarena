@@ -7,3 +7,19 @@
       ! `tasks` has unknown id: "nope".
       i Known ids: "arrange_two", "case_when_count", "datetime_add_days", "datetime_add_month", "datetime_add_month_rollback", "datetime_ceiling_month", "datetime_duration", "datetime_filter_range", "datetime_floor_day", "datetime_floor_hour", "datetime_floor_month", "datetime_floor_week", "datetime_parse", "datetime_parts", "datetime_timezone", "dbbench_groupby_q01", "dbbench_groupby_q02", "dbbench_groupby_q03", ..., "window_lag_by", and "window_top_n_by".
 
+# tiers run their parts at their sizes
+
+    Code
+      arena_plan("s", part = 5)
+    Condition
+      Error in `arena_plan()`:
+      ! `part` must be whole numbers from 1 to 4.
+
+---
+
+    Code
+      arena_plan("s", tasks = "filter_rows", part = 1)
+    Condition
+      Error in `arena_plan()`:
+      ! Give `tasks` or `part`, not both.
+

@@ -1,6 +1,7 @@
 # Mean text length by email domain ending.
 list(
   family = "string",
+  part = 2L,
   data = "strings",
   packages = "stringr",
   code = r"(

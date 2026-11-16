@@ -4,19 +4,27 @@
       check_def(list(code = "df"), "bad", "tasks", task_fields)
     Condition
       Error:
-      ! 'inst/tasks/bad.R' is missing family.
+      ! 'inst/tasks/bad.R' is missing family and part.
     Code
-      check_def(list(family = "f", code = "df", memfactor = 1), "bad", "tasks",
-      task_fields)
+      check_def(list(family = "f", part = 1L, code = "df", memfactor = 1), "bad",
+      "tasks", task_fields)
     Condition
       Error:
       ! 'inst/tasks/bad.R' has unknown field memfactor.
-      i Known fields: family, code, data, packages, order_key, mem_factor, and twin.
+      i Known fields: family, part, code, data, packages, order_key, mem_factor, and twin.
     Code
       check_def("df", "bad", "tasks", task_fields)
     Condition
       Error:
       ! 'inst/tasks/bad.R' must end with a named list.
+
+# a task's part is checked
+
+    Code
+      task_defs()
+    Condition
+      Error in `task_defs()`:
+      ! Task "bad": part must be a whole number from 1 to 4.
 
 # by_twin() refuses pipelines it can't rewrite
 

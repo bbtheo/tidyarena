@@ -1,6 +1,7 @@
 # Format labels with sprintf() and count the distinct ones.
 list(
   family = "string",
+  part = 2L,
   data = "strings",
   packages = "stringr",
   code = r"(

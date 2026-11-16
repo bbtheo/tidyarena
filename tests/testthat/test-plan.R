@@ -31,52 +31,65 @@ test_that("arena_plan() skips tasks whose packages are missing", {
   expect_true(all(plan$action == "skip"))
 })
 
-test_that("xs, s and m run a sample of the tasks, with the settings of l", {
-  n <- nrow(arena_tasks())
-  for (tier in c("xs", "s", "m")) {
-    plan <- arena_plan(tier, backends = character(), budget = 1e12)
-    share <- c(xs = 1 / 8, s = 1 / 4, m = 1 / 2)[[tier]]
-    expect_length(unique(plan$task), ceiling(n * share))
-    expect_equal(unique(plan$size), c(1e6, 1e7, 1e8))
-  }
-  xs <- arena_plan("xs", backends = character())
-  # The same tasks each time, until a run finishes.
-  expect_equal(unique(arena_plan("xs", backends = character())$task), unique(xs$task))
-  expect_equal(unique(arena_plan("xs", backends = character(), tasks = "filter_rows")$task), "filter_rows")
+test_that("the parts split the tasks evenly, twins together", {
+  tasks <- arena_tasks()
+  n <- table(factor(tasks$part, 1:4))
+  expect_lte(max(n) - min(n), 3)
+  base <- sub("_by$", "", tasks$task[tasks$idiom %in% ".by"])
+  twins <- tasks$task[tasks$idiom %in% ".by"]
+  expect_equal(tasks$part[match(twins, tasks$task)], tasks$part[match(base, tasks$task)])
+  # Every data set with four tasks or more is in every part.
+  by_data <- table(tasks$data, tasks$part)
+  expect_true(all(by_data[rowSums(by_data) >= 4, ] > 0))
 })
 
-test_that("successive samples cover every task before any repeats", {
-  tasks <- arena_tasks()$task
-  counts <- stats::setNames(integer(length(tasks)), tasks)
-  seen <- character()
-  for (i in 1:8) {
-    picked <- sample_tasks(tasks, 1 / 8, counts)
-    expect_length(intersect(picked, seen), 0)
+test_that("tiers run their parts at their sizes", {
+  tasks <- arena_tasks()
+  for (tier in c("xs", "s", "m", "l")) {
+    plan <- arena_plan(tier, backends = character(), budget = 1e12)
+    parts <- unique(tasks$part[match(plan$task, tasks$task)])
+    expect_length(parts, c(xs = 1, s = 1, m = 2, l = 4)[[tier]])
+    expect_setequal(unique(plan$task), tasks$task[tasks$part %in% parts])
+    expect_equal(unique(plan$size), tier_settings(tier)$sizes)
+  }
+  plan <- arena_plan("s", backends = character(), part = 3)
+  expect_setequal(unique(plan$task), tasks$task[tasks$part == 3])
+  # The same parts each time, until a run finishes.
+  expect_equal(arena_plan("m", backends = character())$task, arena_plan("m", backends = character())$task)
+  expect_snapshot(arena_plan("s", part = 5), error = TRUE)
+  expect_snapshot(arena_plan("s", tasks = "filter_rows", part = 1), error = TRUE)
+})
+
+test_that("successive runs cover every part before any repeats", {
+  counts <- integer(4)
+  seen <- integer()
+  for (i in 1:4) {
+    picked <- pick_parts(1, 1e6, counts)
+    expect_false(picked %in% seen)
     seen <- c(seen, picked)
     counts[picked] <- counts[picked] + 1L
   }
-  expect_setequal(seen, tasks)
-  # A new round starts once every task has run.
-  expect_length(sample_tasks(tasks, 1 / 8, counts), ceiling(length(tasks) / 8))
+  expect_setequal(seen, 1:4)
+  # Two parts taken across the end of a round are still two different parts.
+  expect_length(unique(pick_parts(2, 1e6, c(1L, 1L, 1L, 0L))), 2)
 })
 
-test_that("task_counts() counts finished runs at every size of l, with unchanged tasks", {
+test_that("part_counts() counts finished runs of whole parts at the sizes, with unchanged tasks", {
   dir <- withr::local_tempdir()
-  hashes <- task_hashes(c("filter_rows", "summarise_lowcard"))
-  write_run <- function(id, sizes = c(1e6, 1e7, 1e8), finished = "2026-01-01", hashes_ = hashes) {
-    run <- list(
-      suite_version = suite_version, sizes = sizes, finished = finished,
-      task_hashes = as.list(hashes_)
-    )
+  tasks <- arena_tasks()
+  write_run <- function(id, parts, sizes = c(1e6, 1e7, 1e8), finished = "2026-01-01", stale = character()) {
+    hashes <- stats::setNames(tasks$hash, tasks$task)[tasks$part %in% parts]
+    hashes[names(hashes) %in% stale] <- "old"
+    run <- list(suite_version = suite_version, sizes = sizes, finished = finished, task_hashes = as.list(hashes))
     dir.create(file.path(dir, id))
     write_run_json(run, file.path(dir, id))
   }
-  write_run("a")
-  write_run("b")
-  write_run("c", sizes = c(1e6, 1e7, 1e8, 1e9))
-  write_run("d", finished = NULL)
-  write_run("e", hashes_ = c(filter_rows = "old"))
-  write_run("f", sizes = c(1e6, 1e7))
-  counts <- task_counts(dir)
-  expect_equal(unname(counts[c("filter_rows", "summarise_lowcard", "arrange_two")]), c(3L, 3L, 0L))
+  write_run("a", 1)
+  write_run("b", 1:2)
+  write_run("c", 1:4, sizes = c(1e6, 1e7, 1e8, 1e9))
+  write_run("d", 3, finished = NULL)
+  write_run("e", 4, stale = tasks$task[tasks$part == 4][1])
+  write_run("f", 3, sizes = c(1e6, 1e7))
+  expect_equal(part_counts(c(1e6, 1e7, 1e8), dir), c(3L, 2L, 1L, 1L))
+  expect_equal(part_counts(c(1e6, 1e7), dir), c(3L, 2L, 2L, 1L))
 })

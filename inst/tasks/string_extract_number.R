@@ -1,6 +1,7 @@
 # Extract the number from a code and use it.
 list(
   family = "string",
+  part = 2L,
   data = "strings",
   packages = "stringr",
   code = r"(

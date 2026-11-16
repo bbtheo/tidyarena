@@ -1,6 +1,7 @@
 # Rolling join: the next price at or after each event.
 list(
   family = "join",
+  part = 4L,
   data = "joins",
   code = r"(
 events |>

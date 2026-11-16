@@ -1,6 +1,7 @@
 # Add a month to a date with %m+%, which rolls back to the month's end.
 list(
   family = "datetime",
+  part = 4L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(

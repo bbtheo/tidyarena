@@ -1,6 +1,7 @@
 # Non-equi join on a key and a time range, written with between().
 list(
   family = "join",
+  part = 1L,
   data = "joins",
   code = r"-(
 events |>

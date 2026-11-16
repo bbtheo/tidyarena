@@ -1,6 +1,7 @@
 # Group by a substring computed with str_sub().
 list(
   family = "string",
+  part = 3L,
   data = "strings",
   packages = "stringr",
   code = r"(

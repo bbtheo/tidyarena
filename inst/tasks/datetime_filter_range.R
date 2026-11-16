@@ -1,6 +1,7 @@
 # Filter on a timestamp range.
 list(
   family = "datetime",
+  part = 1L,
   data = "datetimes",
   packages = "lubridate",
   code = r"(
