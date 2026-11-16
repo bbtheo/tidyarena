@@ -70,8 +70,17 @@ the size: 120 seconds a repetition at 1e6 rows, 300 at 1e7, 600 at 1e8
 and 1800 at 1e9. Loading the data into the backend has a timeout of the
 same length (\code{"setup_timeout"}).
 
-A task that fails at one size is not run at larger sizes on the same
-backend. Tasks predicted not to fit are skipped before they start.
+A backend may also take at most 10 times as long as dplyr on the same task
+and size, and at least 30 seconds, for each run of the pipeline. Past that
+it is stopped, and the cell is \code{"too_slow"}.
+
+A backend that falls back to dplyr in the warm-up (see \code{fallback_pattern}
+in \code{vignette("extending")}) fails the cell: it is \code{"fallback"}, and its
+times are not measured.
+
+A task that fails at one size, by any of these, is not run at larger sizes
+on the same backend. Tasks predicted not to fit are skipped before they
+start.
 }
 
 \section{What is measured}{
@@ -79,8 +88,9 @@ backend. Tasks predicted not to fit are skipped before they start.
 For each repetition, twice: wall time and peak resident memory (exact on
 Linux, sampled every 0.1 seconds elsewhere) of the pipeline with
 \code{\link[dplyr:collect]{dplyr::collect()}} and every value of the result read, and of the
-pipeline with \code{\link[dplyr:compute]{dplyr::compute()}}, the result kept in the backend. For each cell: whether it ran,
-whether a backend fell back to dplyr, whether its result matches dplyr's,
+pipeline with \code{\link[dplyr:compute]{dplyr::compute()}}, the result kept in the backend (for
+dplyr, whose computed result is the collected one, only the first). For
+each cell: whether it ran, whether its result matches dplyr's,
 how much it spilled to disk, and the versions of every loaded package.
 }
 

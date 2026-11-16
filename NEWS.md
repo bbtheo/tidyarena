@@ -1,5 +1,13 @@
 # tidyarena (development version)
 
+* A backend that falls back to dplyr fails the cell: the worker stops after
+  the warm-up, the cell is `"fallback"` without times, and the task is not
+  run at larger sizes on that backend.
+* A backend may take at most 10 times as long as dplyr on the same task and
+  size, at least 30 seconds a run; past that the cell is `"too_slow"`.
+* dplyr, whose computed result is the collected one, is timed once a
+  repetition instead of twice (new backend field `time_compute`).
+
 * The tiers are now t-shirt sizes, all with three timed repetitions. The
   tasks are split into four parts with similar run times and a similar mix
   of data sets (a new `part` field of every task, and column of

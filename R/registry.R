@@ -36,7 +36,8 @@ backend_fields <- list(
     "diagnose",
     "install",
     "install_hint",
-    "read"
+    "read",
+    "time_compute"
   )
 )
 

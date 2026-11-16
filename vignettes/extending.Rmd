@@ -46,7 +46,8 @@ fields:
 | `.release()` in `setup` | none | Frees what `.compute()` made, outside the timing, for example a temporary table. |
 | `teardown` | none | Code run after the task, for example to close a connection. |
 | `mem_factor` | 3 | Memory the backend needs relative to the data, for the plan. |
-| `fallback_pattern` | none | A regular expression matching the message the backend gives when it hands work back to dplyr. Such cells count as fallbacks, not as wins. |
+| `fallback_pattern` | none | A regular expression matching the message the backend gives when it hands work back to dplyr. A cell where it matches in the warm-up fails as a fallback and isn't timed. A backend that can fall back must say so: set its options in `setup` so that it does, as `duckplyr.R`, `arrow.R` and `cuplyr.R` do, or its fallbacks count as its own results. |
+| `time_compute` | `TRUE` | `FALSE` if `.compute()` gives the collected result, as for dplyr: each repetition is then timed once. |
 | `gpu` | `FALSE` | Whether it runs on a GPU. |
 | `requires` | none | What it needs from the machine: `os`, `arch`, `r`, `gpu = "nvidia"`, `compute_capability`, `cuda`. Checked before anything is installed. |
 | `install` | none | For backends that need more than CRAN: `github`, packages installed from the latest release of a GitHub repository (`c(pkg = "owner/repo")`); `repos`, extra repositories; and `env`, environment variables for building from source (for example to download a prebuilt library). See `tidypolars.R` and `arrow.R`. Prefer releases to repositories that build the development branch, such as most of R-universe: results should change when a release does, not with every commit. With `arena_config(only_cran = TRUE)`, backends with `github` or `repos` are not installed and `env` is ignored. |

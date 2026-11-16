@@ -15,15 +15,25 @@
 #' and 1800 at 1e9. Loading the data into the backend has a timeout of the
 #' same length (`"setup_timeout"`).
 #'
-#' A task that fails at one size is not run at larger sizes on the same
-#' backend. Tasks predicted not to fit are skipped before they start.
+#' A backend may also take at most 10 times as long as dplyr on the same task
+#' and size, and at least 30 seconds, for each run of the pipeline. Past that
+#' it is stopped, and the cell is `"too_slow"`.
+#'
+#' A backend that falls back to dplyr in the warm-up (see `fallback_pattern`
+#' in `vignette("extending")`) fails the cell: it is `"fallback"`, and its
+#' times are not measured.
+#'
+#' A task that fails at one size, by any of these, is not run at larger sizes
+#' on the same backend. Tasks predicted not to fit are skipped before they
+#' start.
 #'
 #' @section What is measured:
 #' For each repetition, twice: wall time and peak resident memory (exact on
 #' Linux, sampled every 0.1 seconds elsewhere) of the pipeline with
 #' [dplyr::collect()] and every value of the result read, and of the
-#' pipeline with [dplyr::compute()], the result kept in the backend. For each cell: whether it ran,
-#' whether a backend fell back to dplyr, whether its result matches dplyr's,
+#' pipeline with [dplyr::compute()], the result kept in the backend (for
+#' dplyr, whose computed result is the collected one, only the first). For
+#' each cell: whether it ran, whether its result matches dplyr's,
 #' how much it spilled to disk, and the versions of every loaded package.
 #'
 #' @section Installing backends:
@@ -132,6 +142,7 @@ arena_run <- function(
   results_path <- file.path(dir, "results.jsonl")
   done <- read_cells(results_path)
   refs <- anchor_refs(done)
+  anchor_times <- anchor_seconds(done$records)
   failed <- failed_pairs(done)
   done_keys <- cell_key(done$size, done$task, done$backend)
 
@@ -175,13 +186,15 @@ arena_run <- function(
         settings,
         run,
         dir,
-        libpath
+        libpath,
+        anchor_times[[paste(cell$task, format_n(cell$size))]]
       )
     }
 
     key <- paste(cell$task, format_n(cell$size))
     if (cell$backend == anchor_backend && !is.null(record$fingerprint)) {
       refs[[key]] <- record$fingerprint
+      anchor_times[[key]] <- anchor_seconds(list(record))[[key]]
     }
     record <- check_record(record, refs[[key]], cell$backend)
     if (record$status %in% failure_statuses) {
@@ -208,6 +221,8 @@ skip_backends <- function(plan, skip) {
 }
 
 failure_statuses <- c(
+  "fallback",
+  "too_slow",
   "error",
   "setup_error",
   "setup_timeout",
@@ -218,7 +233,13 @@ failure_statuses <- c(
   "crashed"
 )
 
-run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
+# A backend may take `slow_factor` times as long as dplyr on the same task
+# and size, and at least `slow_floor` seconds, for every run of the
+# pipeline; the cell is "too_slow" past that.
+slow_factor <- 10
+slow_floor <- 30
+
+run_cell <- function(cell, task, backend, data, settings, run, dir, libpath, anchor_seconds = NULL) {
   name <- paste(cell$task, cell$backend, format_n(cell$size), sep = "-")
   tmpdir <- file.path(dir, "cells", name)
   dir.create(tmpdir, recursive = TRUE, showWarnings = FALSE)
@@ -231,6 +252,8 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
     setup = backend$setup,
     teardown = backend$teardown,
     source = backend$source,
+    fallback_pattern = backend$fallback_pattern,
+    time_compute = backend$time_compute,
     data = data$tables,
     reader_lib = reader_lib(),
     reps = settings$reps,
@@ -245,7 +268,8 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
     timeout = size_timeout(cell$size) * (settings$reps + 2),
     guard = run$guard,
     log = file.path(dir, "logs", paste0(name, ".log")),
-    setup_timeout = size_timeout(cell$size)
+    setup_timeout = size_timeout(cell$size),
+    run_timeout = run_timeout(anchor_seconds, cell$size, settings$reps, backend)
   )
   unlink(c(spec$out, sub("\\.rds$", "-spec.rds", spec$out), setup_marker(spec$out)))
 
@@ -282,6 +306,36 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
   )
 }
 
+# Seconds the pipeline may take after setup, all runs together, or Inf when
+# there is no dplyr time to compare with or the size's timeout is lower.
+run_timeout <- function(anchor_seconds, size, reps, backend) {
+  if (is.null(anchor_seconds) || is.na(anchor_seconds)) {
+    return(Inf)
+  }
+  per_run <- max(slow_floor, slow_factor * anchor_seconds)
+  if (per_run >= size_timeout(size)) {
+    return(Inf)
+  }
+  runs <- (reps + 1) * if (isFALSE(backend$time_compute)) 1 else 2
+  per_run * runs
+}
+
+# dplyr's median time over the timed repetitions, by task and size.
+anchor_seconds <- function(records) {
+  out <- list()
+  for (r in records) {
+    if (!identical(r$backend, anchor_backend) || !identical(r$status, "ok")) {
+      next
+    }
+    timed <- Filter(function(x) !isTRUE(x$warmup), r$reps)
+    seconds <- vapply(timed, function(x) as.double(x$seconds %||% NA), numeric(1))
+    if (length(seconds) > 0) {
+      out[[paste(r$task, format_n(r$size))]] <- stats::median(seconds, na.rm = TRUE)
+    }
+  }
+  out
+}
+
 # Versions worth keeping: the backend's packages and the engines under them.
 backend_versions <- function(versions, backend) {
   keep <- c(backend$packages, "dplyr", "rlang", "vctrs", "duckdb", "arrow", "polars", "data.table")
@@ -300,7 +354,7 @@ skipped_record <- function(cell, reason) {
 }
 
 check_record <- function(record, ref, backend) {
-  if (!record$status %in% c("ok", "fallback")) {
+  if (!identical(record$status, "ok")) {
     record$correct <- NA
   } else if (backend == anchor_backend) {
     record$correct <- TRUE

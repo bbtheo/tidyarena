@@ -43,7 +43,7 @@ print.arena_results <- function(x, ...) {
   cells <- x$cells
   cli::cli_text(
     "{.cls arena_results}: run {.val {x$run$run_id}}, ",
-    "{nrow(cells)} cell{?s}, {sum(cells$status %in% c('ok', 'fallback'))} ran."
+    "{nrow(cells)} cell{?s}, {sum(cells$status == 'ok')} ran."
   )
   cli::cli_text("Use {.fn arena_report} for a summary.")
   invisible(x)

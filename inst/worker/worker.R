@@ -216,13 +216,18 @@ local({
   # Two measurements per repetition, each from the data: "compute", the
   # result computed where the backend keeps it (an Arrow table, a DuckDB
   # table, GPU memory), and "collect", the result as R values in this
-  # process. The second is what correctness is checked on.
+  # process. The second is what correctness is checked on. A backend whose
+  # computed result is the collected one (dplyr) is only measured once.
   result$status <- "running"
   for (rep in seq_len(spec$reps + 1L) - 1L) {
-    computed <- tryCatch(
-      measure(env$.compute),
-      error = function(e) list(error = conditionMessage(e))
-    )
+    computed <- if (isFALSE(spec$time_compute)) {
+      list()
+    } else {
+      tryCatch(
+        measure(env$.compute),
+        error = function(e) list(error = conditionMessage(e))
+      )
+    }
     if (!is.null(computed$error)) {
       result$compute_error <- computed$error
     } else if (exists(".release", envir = env, inherits = FALSE)) {
@@ -248,6 +253,18 @@ local({
     }
     rm(collected, computed)
     result$conditions <- conditions
+    # A backend that fell back to dplyr in the warm-up fails the cell, and
+    # its times are not measured.
+    if (
+      rep == 0L &&
+        !is.null(spec$fallback_pattern) &&
+        any(grepl(spec$fallback_pattern, conditions, ignore.case = TRUE))
+    ) {
+      result$status <- "fallback"
+      result$versions <- versions()
+      save_result()
+      quit(save = "no", status = 0)
+    }
     save_result()
   }
 

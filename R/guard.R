@@ -52,7 +52,15 @@ systemd_args <- function(budget) {
 
 # Runs the worker on one spec and watches it. Returns the worker's result,
 # with `status` set by the watchdog when it had to step in.
-run_worker <- function(spec, budget, timeout, guard, log, setup_timeout = timeout) {
+run_worker <- function(
+  spec,
+  budget,
+  timeout,
+  guard,
+  log,
+  setup_timeout = timeout,
+  run_timeout = Inf
+) {
   spec_path <- sub("\\.rds$", "-spec.rds", spec$out)
   saveRDS(spec, spec_path)
   rscript <- file.path(R.home("bin"), "Rscript")
@@ -92,7 +100,8 @@ run_worker <- function(spec, budget, timeout, guard, log, setup_timeout = timeou
     timeout,
     spec$tmpdir,
     setup_timeout = setup_timeout,
-    setup_done = setup_marker(spec$out)
+    setup_done = setup_marker(spec$out),
+    run_timeout = run_timeout
   )
   p$wait()
 
@@ -100,7 +109,7 @@ run_worker <- function(spec, budget, timeout, guard, log, setup_timeout = timeou
   exit <- p$get_exit_status()
   if (!is.null(watch$reason)) {
     result$status <- watch$reason
-  } else if (!identical(result$status, "ok") && !grepl("error", result$status %||% "")) {
+  } else if (!result$status %in% c("ok", "fallback") && !grepl("error", result$status %||% "")) {
     # The worker died without saying why. A kill by signal 9 that the
     # watchdog did not send is the cgroup (or the kernel) running out of
     # memory.
@@ -115,7 +124,9 @@ run_worker <- function(spec, budget, timeout, guard, log, setup_timeout = timeou
 # Stops the worker when it uses too much memory or time. Loading the data
 # into the backend has a limit of its own, `setup_timeout`: a backend that
 # can't load the data fails then, instead of using the time of the whole
-# cell. The worker creates the file `setup_done` when setup is over.
+# cell. The worker creates the file `setup_done` when setup is over. The
+# time after that, running the pipeline, may take at most `run_timeout`
+# seconds, or the cell is "too_slow".
 watch_worker <- function(
   p,
   budget,
@@ -123,7 +134,8 @@ watch_worker <- function(
   tmpdir,
   interval = 0.1,
   setup_timeout = timeout,
-  setup_done = NULL
+  setup_done = NULL,
+  run_timeout = Inf
 ) {
   start <- Sys.time()
   swap0 <- ps::ps_system_swap()[["used"]]
@@ -134,6 +146,7 @@ watch_worker <- function(
   last_spill_check <- start
   reason <- NULL
   handle <- p$as_ps_handle()
+  setup_end <- NULL
 
   while (p$is_alive()) {
     rss <- tree_rss(handle)
@@ -141,6 +154,10 @@ watch_worker <- function(
     avail <- ps::ps_system_memory()[["avail"]]
     swap_growth <- ps::ps_system_swap()[["used"]] - swap0
     elapsed <- as.double(Sys.time() - start, units = "secs")
+    if (is.null(setup_end) && !is.null(setup_done) && file.exists(setup_done)) {
+      setup_end <- Sys.time()
+    }
+    running <- if (is.null(setup_end)) 0 else as.double(Sys.time() - setup_end, units = "secs")
 
     reason <- if (rss > budget) {
       "oom_guard"
@@ -150,6 +167,8 @@ watch_worker <- function(
       "swap_guard"
     } else if (elapsed > timeout) {
       "timeout"
+    } else if (running > run_timeout) {
+      "too_slow"
     } else if (elapsed > setup_timeout && !is.null(setup_done) && !file.exists(setup_done)) {
       "setup_timeout"
     }

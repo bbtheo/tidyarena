@@ -60,12 +60,81 @@ test_that("results record the hash of the task code", {
   expect_equal(res$cells$task_hash[res$cells$task == "filter_rows"], with(arena_tasks(), hash[task == "filter_rows"]))
 })
 
-test_that("each repetition is timed in R and computed in the backend", {
-  res <- local_tiny_run(tasks = "filter_rows")
-  reps <- res$reps[!res$reps$warmup, ]
-  expect_true(all(reps$compute_seconds > 0))
-  expect_true(all(reps$seconds > 0))
-  expect_true(all(!is.na(res$cells$compute_seconds)))
+test_that("each repetition is timed in R and computed in the backend, except dplyr's", {
+  skip_if_not_installed("dplyr")
+  withr::local_envvar(R_USER_CACHE_DIR = withr::local_tempdir())
+  defs <- backend_defs()
+  defs$computed <- defs$dplyr
+  defs$computed$time_compute <- NULL
+  local_mocked_bindings(backend_defs = function() defs)
+  dir <- withr::local_tempdir()
+  cells <- suppressMessages(arena_run(
+    backends = "computed", tasks = "filter_rows", sizes = 100,
+    install = "never", dir = file.path(dir, "run")
+  ))$cells
+  expect_true(is.na(cells$compute_seconds[cells$backend == "dplyr"]))
+  expect_false(is.na(cells$compute_seconds[cells$backend == "computed"]))
+  expect_true(all(cells$seconds > 0))
+})
+
+test_that("a backend that falls back in the warm-up fails without being timed", {
+  skip_if_not_installed("dplyr")
+  withr::local_envvar(R_USER_CACHE_DIR = withr::local_tempdir())
+  defs <- backend_defs()
+  defs$falls <- defs$dplyr
+  defs$falls$fallback_pattern <- "fell back"
+  defs$falls$setup <- c(
+    defs$dplyr$setup[!grepl("^\\.collect", defs$dplyr$setup)],
+    ".collect <- function(x) { message('fell back to dplyr'); x }"
+  )
+  local_mocked_bindings(backend_defs = function() defs)
+  dir <- withr::local_tempdir()
+  res <- suppressMessages(arena_run(
+    backends = "falls", tasks = "filter_rows", sizes = c(100, 1000),
+    install = "never", dir = file.path(dir, "run")
+  ))
+  falls <- res$cells[res$cells$backend == "falls", ]
+  expect_equal(falls$status, c("fallback", "skipped"))
+  expect_equal(falls$reason[[2]], "failed at a smaller size")
+  expect_equal(nrow(res$reps[res$reps$backend == "falls", ]), 1)
+})
+
+test_that("a backend gets 10 times dplyr's time, at least 30 seconds a run", {
+  computed <- list()
+  dplyr <- list(time_compute = FALSE)
+  expect_equal(run_timeout(NULL, 1e6, 3, computed), Inf)
+  expect_equal(run_timeout(0.1, 1e6, 3, computed), 30 * 4 * 2)
+  expect_equal(run_timeout(5, 1e7, 3, dplyr), 50 * 4)
+  # Not more than the size's own limit.
+  expect_equal(run_timeout(20, 1e6, 3, computed), Inf)
+})
+
+test_that("a pipeline past its limit is too slow", {
+  dir <- withr::local_tempdir()
+  data <- arena_data(100, file.path(dir, "data"))
+  spec <- list(
+    code = "Sys.sleep(30); df",
+    order_key = NA_character_,
+    setup = c(".collect <- function(x) x", ".compute <- function(x) x", ".convert <- function(x, name) x"),
+    data = data$tables,
+    reader_lib = reader_lib(),
+    reps = 0L,
+    budget_mb = 1024,
+    libpath = .libPaths(),
+    tmpdir = dir,
+    out = file.path(dir, "out.rds")
+  )
+  t0 <- Sys.time()
+  result <- run_worker(
+    spec,
+    budget = 2^31,
+    timeout = 60,
+    guard = "watchdog",
+    log = file.path(dir, "log"),
+    run_timeout = 2
+  )
+  expect_equal(result$status, "too_slow")
+  expect_lt(as.double(Sys.time() - t0, units = "secs"), 20)
 })
 
 test_that("a backend whose compute fails still gets its in-R timing", {

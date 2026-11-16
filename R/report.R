@@ -101,13 +101,15 @@ add_ratios <- function(cells) {
     ifelse(is.na(d$compute_peak_rss_delta), d$compute_peak_rss, d$compute_peak_rss_delta)
   }
   idx <- match(key, anchor_key)
-  usable <- cells$status %in% c("ok", "fallback") & cells$correct %in% TRUE
+  usable <- cells$status == "ok" & cells$correct %in% TRUE
+  # dplyr's computed result is its collected one.
+  anchor_compute <- ifelse(is.na(anchor$compute_seconds), anchor$seconds, anchor$compute_seconds)
   cells$time_ratio <- ifelse(usable, cells$seconds / anchor$seconds[idx], NA_real_)
   cells$mem_ratio <- ifelse(usable, memory(cells) / memory(anchor)[idx], NA_real_)
-  cells$compute_ratio <- ifelse(usable, cells$compute_seconds / anchor$compute_seconds[idx], NA_real_)
+  cells$compute_ratio <- ifelse(usable, cells$compute_seconds / anchor_compute[idx], NA_real_)
   cells$compute_mem_ratio <- ifelse(
     usable,
-    compute_memory(cells) / compute_memory(anchor)[idx],
+    compute_memory(cells) / ifelse(is.na(compute_memory(anchor)), memory(anchor), compute_memory(anchor))[idx],
     NA_real_
   )
   cells
