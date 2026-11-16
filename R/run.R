@@ -10,9 +10,9 @@
 #' limit enforced by the kernel (a cgroup with swap disabled), so a task that
 #' overruns it is killed without pushing the machine into swap. On every
 #' platform a watchdog also kills a task that goes over budget, leaves less
-#' than 1 GB free, makes swap grow, or runs past the tier's timeout. Loading
-#' the data into the backend has the tier's timeout of its own
-#' (`"setup_timeout"`).
+#' than 1 GB free, makes swap grow, or runs past its timeout: 600 seconds a
+#' repetition up to 1e8 rows, 1800 seconds at 1e9 rows. Loading the data into
+#' the backend has a timeout of the same length (`"setup_timeout"`).
 #'
 #' A task that fails at one size is not run at larger sizes on the same
 #' backend. Tasks predicted not to fit are skipped before they start.
@@ -84,14 +84,13 @@ arena_run <- function(
   resuming <- !is.null(dir) && file.exists(file.path(dir, "run.json"))
   if (resuming) {
     run <- read_run_json(dir)
-    check_resume(run, tier, backends, tasks, sizes)
+    check_resume(run, backends, tasks, sizes)
     check_task_hashes(run)
     prefer <- run$prefer %||% "session"
     if (!libpath_given) {
       libpath <- default_libpath(prefer)
     }
     plan <- arena_plan(
-      run$tier,
       backends = unlist(run$backends),
       tasks = unlist(run$tasks),
       sizes = unlist(run$sizes),
@@ -241,10 +240,10 @@ run_cell <- function(cell, task, backend, data, settings, run, dir, libpath) {
   result <- run_worker(
     spec,
     budget = settings$budget,
-    timeout = settings$timeout * (settings$reps + 2),
+    timeout = size_timeout(cell$size) * (settings$reps + 2),
     guard = run$guard,
     log = file.path(dir, "logs", paste0(name, ".log")),
-    setup_timeout = settings$timeout
+    setup_timeout = size_timeout(cell$size)
   )
   unlink(c(spec$out, sub("\\.rds$", "-spec.rds", spec$out), setup_marker(spec$out)))
 
@@ -347,13 +346,11 @@ new_run <- function(dir, plan, prefer = "session", diagnostics = list()) {
     schema_version = schema_version,
     suite_version = suite_version,
     run_id = basename(dir),
-    tier = settings$tier,
     sizes = sort(unique(plan$size)),
     tasks = unique(plan$task),
     task_hashes = as.list(task_hashes(unique(plan$task))),
     backends = unique(plan$backend),
     reps = settings$reps,
-    timeout = settings$timeout,
     budget = settings$budget,
     guard = guard_method(),
     libraries = install_records(attr(plan, "libpath")),
@@ -367,7 +364,7 @@ new_run <- function(dir, plan, prefer = "session", diagnostics = list()) {
   run
 }
 
-check_resume <- function(run, tier, backends, tasks, sizes, call = rlang::caller_env()) {
+check_resume <- function(run, backends, tasks, sizes, call = rlang::caller_env()) {
   given <- list(backends = backends, tasks = tasks, sizes = sizes)
   given <- given[!vapply(given, is.null, logical(1))]
   if (length(given) > 0) {

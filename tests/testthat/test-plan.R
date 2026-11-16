@@ -38,7 +38,6 @@ test_that("xs, s and m run a sample of the tasks, with the settings of l", {
     share <- c(xs = 1 / 8, s = 1 / 4, m = 1 / 2)[[tier]]
     expect_length(unique(plan$task), ceiling(n * share))
     expect_equal(unique(plan$size), c(1e6, 1e7, 1e8))
-    expect_equal(attr(plan, "settings")$reps, tier_settings("l")$reps)
   }
   xs <- arena_plan("xs", backends = character())
   # The same tasks each time, until a run finishes.
@@ -61,22 +60,23 @@ test_that("successive samples cover every task before any repeats", {
   expect_length(sample_tasks(tasks, 1 / 8, counts), ceiling(length(tasks) / 8))
 })
 
-test_that("task_counts() counts finished runs with unchanged tasks", {
+test_that("task_counts() counts finished runs at every size of l, with unchanged tasks", {
   dir <- withr::local_tempdir()
   hashes <- task_hashes(c("filter_rows", "summarise_lowcard"))
-  write_run <- function(id, tier, finished = "2026-01-01", hashes_ = hashes) {
+  write_run <- function(id, sizes = c(1e6, 1e7, 1e8), finished = "2026-01-01", hashes_ = hashes) {
     run <- list(
-      suite_version = suite_version, tier = tier, finished = finished,
+      suite_version = suite_version, sizes = sizes, finished = finished,
       task_hashes = as.list(hashes_)
     )
     dir.create(file.path(dir, id))
     write_run_json(run, file.path(dir, id))
   }
-  write_run("a", "xs")
-  write_run("b", "m")
-  write_run("c", "xl")
-  write_run("d", "s", finished = NULL)
-  write_run("e", "s", hashes_ = c(filter_rows = "old"))
+  write_run("a")
+  write_run("b")
+  write_run("c", sizes = c(1e6, 1e7, 1e8, 1e9))
+  write_run("d", finished = NULL)
+  write_run("e", hashes_ = c(filter_rows = "old"))
+  write_run("f", sizes = c(1e6, 1e7))
   counts <- task_counts(dir)
   expect_equal(unname(counts[c("filter_rows", "summarise_lowcard", "arrange_two")]), c(3L, 3L, 0L))
 })

@@ -30,10 +30,9 @@ arena_report <- function(x) {
 
   cli::cli_h1("tidyarena run {.val {x$run$run_id}}")
   cli::cli_text(machine_line(x$run$env))
-  if (isTRUE(x$run$tier %in% c("xs", "s", "m"))) {
-    cli::cli_text(
-      "A {.val {x$run$tier}} run: {length(x$run$tasks)} of the {nrow(arena_tasks())} tasks, run as in {.val l}."
-    )
+  n_tasks <- length(x$run$tasks)
+  if (n_tasks < nrow(arena_tasks())) {
+    cli::cli_text("{n_tasks} of the {nrow(arena_tasks())} tasks.")
   }
   notes <- setting_notes(x$run$env)
   if (length(notes) > 0) {

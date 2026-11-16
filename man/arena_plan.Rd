@@ -51,14 +51,17 @@ run as in \code{"l"}.
 \item \code{"xl"}: every task at 1e6 to 1e9 rows.
 }
 
-Every cell runs one untimed warm-up and three timed repetitions.
+Every cell runs one untimed warm-up and three timed repetitions, and how
+it runs depends only on its task, backend and size: the tier only decides
+which cells run, and is not recorded. Two m runs give the same cells as one
+l run.
 
 \code{"xs"}, \code{"s"} and \code{"m"} take the tasks this machine has run least often
-in finished runs (in the default run directory), so two m runs, four s
-runs or eight xs runs in a row cover the tasks of one l run. The order is
-fixed for each machine, so \code{arena_plan()} shows the tasks \code{\link[=arena_run]{arena_run()}}
-would run, and different machines start with different tasks. With
-\code{tasks} given, those tasks run.
+at every size of \code{"l"}, in finished runs in the default run directory, so
+two m runs, four s runs or eight xs runs in a row cover the tasks of one l
+run. The order is fixed for each machine, so \code{arena_plan()} shows the
+tasks \code{\link[=arena_run]{arena_run()}} would run, and different machines start with
+different tasks. With \code{tasks} given, those tasks run.
 }
 
 \examples{

@@ -5,7 +5,10 @@
   `"xl"` adds 1e9, as `"full"` did. `"m"`, `"s"` and `"xs"` run a half, a
   quarter and an eighth of the tasks as in `"l"`, taking the tasks the
   machine has run least often in finished runs, so two m, four s or eight
-  xs runs cover one l run. They replace `"quick"`.
+  xs runs cover one l run. They replace `"quick"`. A tier only chooses
+  which cells run and is not recorded: a cell runs the same in every tier,
+  with a timeout set by its size (600 seconds a repetition up to 1e8 rows,
+  1800 at 1e9), so two m runs give the same cells as one l run.
 
 * Backends that read Parquet files themselves also run as Parquet variants:
   `dbplyr_duckdb_parquet`, `duckplyr_parquet`, `arrow_parquet`,

@@ -12,14 +12,17 @@
 #'   run as in `"l"`.
 #' * `"xl"`: every task at 1e6 to 1e9 rows.
 #'
-#' Every cell runs one untimed warm-up and three timed repetitions.
+#' Every cell runs one untimed warm-up and three timed repetitions, and how
+#' it runs depends only on its task, backend and size: the tier only decides
+#' which cells run, and is not recorded. Two m runs give the same cells as one
+#' l run.
 #'
 #' `"xs"`, `"s"` and `"m"` take the tasks this machine has run least often
-#' in finished runs (in the default run directory), so two m runs, four s
-#' runs or eight xs runs in a row cover the tasks of one l run. The order is
-#' fixed for each machine, so `arena_plan()` shows the tasks [arena_run()]
-#' would run, and different machines start with different tasks. With
-#' `tasks` given, those tasks run.
+#' at every size of `"l"`, in finished runs in the default run directory, so
+#' two m runs, four s runs or eight xs runs in a row cover the tasks of one l
+#' run. The order is fixed for each machine, so `arena_plan()` shows the
+#' tasks [arena_run()] would run, and different machines start with
+#' different tasks. With `tasks` given, those tasks run.
 #'
 #' @param tier The run's size: `"xs"`, `"s"`, `"m"`, `"l"` or `"xl"`.
 #' @param backends Backend ids to run, see [arena_backends()]. Defaults to
@@ -125,22 +128,31 @@ arena_plan <- function(
   cells$action[skip | over] <- "skip"
 
   out <- tibble::as_tibble(cells)
-  attr(out, "settings") <- c(settings, list(budget = budget, tier = tier))
+  attr(out, "settings") <- list(reps = arena_reps, budget = budget)
   attr(out, "libpath") <- libpath
   out
 }
 
 r_baseline_bytes <- 300 * 2^20
 
+# A tier only chooses which cells run. How a cell runs depends on nothing but
+# its task, backend and size, so cells from runs of any tier can be pooled.
 tier_settings <- function(tier) {
   switch(
     tier,
-    xs = list(sizes = c(1e6, 1e7, 1e8), reps = 3L, timeout = 600, share = 1 / 8),
-    s = list(sizes = c(1e6, 1e7, 1e8), reps = 3L, timeout = 600, share = 1 / 4),
-    m = list(sizes = c(1e6, 1e7, 1e8), reps = 3L, timeout = 600, share = 1 / 2),
-    l = list(sizes = c(1e6, 1e7, 1e8), reps = 3L, timeout = 600, share = 1),
-    xl = list(sizes = c(1e6, 1e7, 1e8, 1e9), reps = 3L, timeout = 1800, share = 1)
+    xs = list(sizes = c(1e6, 1e7, 1e8), share = 1 / 8),
+    s = list(sizes = c(1e6, 1e7, 1e8), share = 1 / 4),
+    m = list(sizes = c(1e6, 1e7, 1e8), share = 1 / 2),
+    l = list(sizes = c(1e6, 1e7, 1e8), share = 1),
+    xl = list(sizes = c(1e6, 1e7, 1e8, 1e9), share = 1)
   )
+}
+
+arena_reps <- 3L
+
+# Seconds one repetition, or loading the data, may take.
+size_timeout <- function(size) {
+  if (size > 1e8) 1800 else 600
 }
 
 check_ids <- function(x, valid, arg, call = rlang::caller_env()) {
