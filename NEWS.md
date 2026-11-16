@@ -10,6 +10,9 @@
   untimed `setup_seconds`. `arena_config(exclude = "arrow")` leaves out
   the variant too.
 
+* cuplyr's CPU fallbacks, silent by default, now warn and count as
+  fallbacks, as duckplyr's and arrow's do.
+
 * Every task runs with `TZ=UTC`, so that results don't depend on the
   machine's time zone.
 

@@ -3,6 +3,9 @@ list(
   packages = c("dplyr", "cuplyr"),
   gpu = TRUE,
   mem_factor = 2,
+  # cuplyr runs what it can't do on the GPU on the CPU instead, silently by
+  # default; setup asks it to warn, so that such cells count as fallbacks.
+  fallback_pattern = "fell back to CPU",
   # From cuplyr's README.
   requires = list(
     os = "linux",
@@ -19,6 +22,7 @@ list(
   # cuplyr 0.1.1.9000 (d838d5f).
   read = "cuplyr::read_parquet_gpu(path, lazy = TRUE)",
   setup = c(
+    "options(cuplyr.fallback = 'warn')",
     "library(dplyr)",
     "library(cuplyr)"
   ),
