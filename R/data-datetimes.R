@@ -9,6 +9,10 @@
 # * `ts_str`: `ts` as `"YYYY-MM-DD HH:MM:SS"`.
 # * `amount`: a value from 0 to 200.
 generate_datetimes <- function(n, seed, paths, options = list()) {
+  # No min/max statistics: nanoparquet 0.5.2 writes wrong ones for columns
+  # of more than one page, and readers that trust them, DuckDB among them,
+  # then skip rows that match.
+  no_minmax <- nanoparquet::parquet_options(write_minmax_values = FALSE)
   RNGkind("Mersenne-Twister", "Inversion", "Rejection")
   set.seed(seed)
   n <- as.integer(n)
@@ -24,7 +28,7 @@ generate_datetimes <- function(n, seed, paths, options = list()) {
     ts_str = format(ts, "%Y-%m-%d %H:%M:%S", tz = "UTC"),
     amount = round(stats::runif(n, 0, 200), 2)
   )
-  nanoparquet::write_parquet(log, paths$log, compression = "uncompressed")
+  nanoparquet::write_parquet(log, paths$log, compression = "uncompressed", options = no_minmax)
   list(log = list(
     nrow = n,
     ts = sum(as.double(log$ts)),

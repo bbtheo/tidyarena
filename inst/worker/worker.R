@@ -89,22 +89,31 @@ local({
     class(table) <- "data.frame"
     table
   }
+  # A backend that reads the Parquet files itself (`spec$source` is
+  # "parquet") gets their paths instead.
+  parquet <- identical(spec$source, "parquet")
   env <- new.env(parent = globalenv())
-  for (name in names(spec$data)) {
-    env[[name]] <- read_table(spec$data[[name]])
+  if (!parquet) {
+    for (name in names(spec$data)) {
+      env[[name]] <- read_table(spec$data[[name]])
+    }
+    try(unloadNamespace("nanoparquet"), silent = TRUE)
+    gc()
   }
-  try(unloadNamespace("nanoparquet"), silent = TRUE)
-  gc()
   env$.budget_mb <- spec$budget_mb
 
   t0 <- Sys.time()
   # The backend's setup, then its conversion of every table into its own
-  # form.
+  # form, or its reading of every Parquet file.
   tryCatch(
     capture({
       eval(parse(text = spec$setup), envir = env)
       for (name in names(spec$data)) {
-        env[[name]] <- env$.convert(env[[name]], name)
+        env[[name]] <- if (parquet) {
+          env$.read(spec$data[[name]], name)
+        } else {
+          env$.convert(env[[name]], name)
+        }
       }
       # Packages the task's code uses, attached as a user would.
       for (package in spec$packages) {

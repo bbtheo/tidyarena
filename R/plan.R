@@ -66,7 +66,9 @@ arena_plan <- function(
   bytes <- data_bytes(cells$size, dataset)
   backend_factor <- vapply(defs[cells$backend], `[[`, numeric(1), "mem_factor")
   task_factor <- all_tasks$mem_factor[task_row]
-  cells$est_peak <- unname(r_baseline_bytes + bytes * (1 + backend_factor * task_factor))
+  # The data frames in R, except for backends that read the Parquet files.
+  in_r <- vapply(defs[cells$backend], function(d) d$source == "memory", logical(1))
+  cells$est_peak <- unname(r_baseline_bytes + bytes * (in_r + backend_factor * task_factor))
 
   row <- match(cells$backend, all_backends$backend)
   cells$action <- "run"

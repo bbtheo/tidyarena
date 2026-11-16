@@ -12,6 +12,10 @@
 # Both run in a fresh R process with base R and nanoparquet only.
 
 generate_dbbench_groupby <- function(n, seed, paths, options = list()) {
+  # No min/max statistics: nanoparquet 0.5.2 writes wrong ones for columns
+  # of more than one page, and readers that trust them, DuckDB among them,
+  # then skip rows that match.
+  no_minmax <- nanoparquet::parquet_options(write_minmax_values = FALSE)
   RNGkind("Mersenne-Twister", "Inversion", "Rejection")
   set.seed(seed)
   N <- as.integer(n)
@@ -30,7 +34,7 @@ generate_dbbench_groupby <- function(n, seed, paths, options = list()) {
     x[[col]] <- factor(x[[col]])
   }
   x <- as.data.frame(x)
-  nanoparquet::write_parquet(x, paths$x, compression = "uncompressed")
+  nanoparquet::write_parquet(x, paths$x, compression = "uncompressed", options = no_minmax)
 
   summarise_table <- function(d) {
     numeric <- vapply(d, is.numeric, logical(1))
@@ -40,6 +44,10 @@ generate_dbbench_groupby <- function(n, seed, paths, options = list()) {
 }
 
 generate_dbbench_join <- function(n, seed, paths, options = list()) {
+  # No min/max statistics: nanoparquet 0.5.2 writes wrong ones for columns
+  # of more than one page, and readers that trust them, DuckDB among them,
+  # then skip rows that match.
+  no_minmax <- nanoparquet::parquet_options(write_minmax_values = FALSE)
   RNGkind("Mersenne-Twister", "Inversion", "Rejection")
   set.seed(seed)
   N <- as.integer(n)
@@ -73,7 +81,7 @@ generate_dbbench_join <- function(n, seed, paths, options = list()) {
   fingerprint <- list()
   write <- function(d, name) {
     d <- finish(d)
-    nanoparquet::write_parquet(d, paths[[name]], compression = "uncompressed")
+    nanoparquet::write_parquet(d, paths[[name]], compression = "uncompressed", options = no_minmax)
     fingerprint[[name]] <<- summarise_table(d)
   }
 

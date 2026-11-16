@@ -7,6 +7,9 @@ list(
   install = list(env = c(NOT_CRAN = "true", LIBARROW_BINARY = "true")),
   # Turns each table, `x`, named `name`, into the backend's form.
   convert = "arrow::arrow_table(x)",
+  # Reads the Parquet file at `path` itself: a dataset, so every query scans
+  # the file.
+  read = "arrow::open_dataset(path)",
   setup = c(
     "library(dplyr)"
   )

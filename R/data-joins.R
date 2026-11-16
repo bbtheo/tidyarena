@@ -14,6 +14,10 @@
 # * `windows`: for every level, 5 overlapping time windows `[start, end)`,
 #   for a non-equi join on `key_fct` and `t`.
 generate_joins <- function(n, seed, paths, options = list()) {
+  # No min/max statistics: nanoparquet 0.5.2 writes wrong ones for columns
+  # of more than one page, and readers that trust them, DuckDB among them,
+  # then skip rows that match.
+  no_minmax <- nanoparquet::parquet_options(write_minmax_values = FALSE)
   RNGkind("Mersenne-Twister", "Inversion", "Rejection")
   set.seed(seed)
   n <- as.integer(n)
@@ -80,7 +84,7 @@ generate_joins <- function(n, seed, paths, options = list()) {
   fingerprint <- list()
   for (name in names(tables)) {
     d <- tables[[name]]
-    nanoparquet::write_parquet(d, paths[[name]], compression = "uncompressed")
+    nanoparquet::write_parquet(d, paths[[name]], compression = "uncompressed", options = no_minmax)
     numeric <- vapply(d, is.numeric, logical(1))
     sums <- lapply(d[numeric], function(v) sum(as.double(v)))
     fingerprint[[name]] <- c(list(nrow = nrow(d)), sums)

@@ -99,8 +99,8 @@ arena_data <- function(n, dir = arena_cache_dir(), dataset = "arena") {
 dataset_defs <- function() {
   list(
     arena = list(
-      version = 1L,
-      dir = "gen1",
+      version = 2L,
+      dir = "gen2",
       tables = c("df", "lookup"),
       seed = generator_seed,
       generate = generate_tables,
@@ -110,7 +110,7 @@ dataset_defs <- function() {
       min_size = 1
     ),
     dbbench_groupby = list(
-      version = 1L,
+      version = 2L,
       tables = "x",
       seed = 108L,
       generate = generate_dbbench_groupby,
@@ -120,7 +120,7 @@ dataset_defs <- function() {
       min_size = 100
     ),
     dbbench_join = list(
-      version = 1L,
+      version = 2L,
       tables = c("x", "small", "medium", "big"),
       seed = 108L,
       generate = generate_dbbench_join,
@@ -131,7 +131,7 @@ dataset_defs <- function() {
       min_size = 1e7
     ),
     joins = list(
-      version = 1L,
+      version = 2L,
       tables = c("events", "dim", "cats", "prices", "bands", "windows"),
       seed = 20261115L,
       generate = generate_joins,
@@ -142,7 +142,7 @@ dataset_defs <- function() {
       min_size = 1e4
     ),
     strings = list(
-      version = 1L,
+      version = 2L,
       tables = "customers",
       seed = 20261116L,
       generate = generate_strings,
@@ -153,7 +153,7 @@ dataset_defs <- function() {
       min_size = 1e3
     ),
     datetimes = list(
-      version = 1L,
+      version = 2L,
       tables = "log",
       seed = 20261117L,
       generate = generate_datetimes,
@@ -208,6 +208,10 @@ generator_seed <- 20261114L
 
 # Runs in a fresh R process: base R, and nanoparquet to write the tables.
 generate_tables <- function(n, seed, paths, options = list()) {
+  # No min/max statistics: nanoparquet 0.5.2 writes wrong ones for columns
+  # of more than one page, and readers that trust them, DuckDB among them,
+  # then skip rows that match.
+  no_minmax <- nanoparquet::parquet_options(write_minmax_values = FALSE)
   set.seed(
     seed,
     kind = "Mersenne-Twister",
@@ -250,8 +254,8 @@ generate_tables <- function(n, seed, paths, options = list()) {
     n_na_z = sum(is.na(df$z)),
     sum_skew = sum(as.double(df$g_skew))
   )
-  nanoparquet::write_parquet(df, paths$df, compression = "uncompressed")
-  nanoparquet::write_parquet(lookup, paths$lookup, compression = "uncompressed")
+  nanoparquet::write_parquet(df, paths$df, compression = "uncompressed", options = no_minmax)
+  nanoparquet::write_parquet(lookup, paths$lookup, compression = "uncompressed", options = no_minmax)
   fingerprint
 }
 

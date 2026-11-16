@@ -1,5 +1,24 @@
 # tidyarena (development version)
 
+* Backends that read Parquet files themselves also run as Parquet variants:
+  `dbplyr_duckdb_parquet`, `duckplyr_parquet`, `arrow_parquet`,
+  `tidypolars_parquet` and `cuplyr_parquet` read the tables from their
+  cached Parquet files (a DuckDB view, `read_parquet_duckdb()`,
+  `open_dataset()`, `scan_parquet()`, `read_parquet_gpu()`) instead of being given data frames from R. A backend's
+  new `read` field defines its variant. `arena_report()` compares each
+  variant with its backend, and results have a `source` column and the
+  untimed `setup_seconds`. `arena_config(exclude = "arrow")` leaves out
+  the variant too.
+
+* Every task runs with `TZ=UTC`, so that results don't depend on the
+  machine's time zone.
+
+* The cached Parquet files are written without min/max statistics, and are
+  generated again. nanoparquet 0.5.2 writes wrong statistics for columns of
+  more than one page, and DuckDB, which trusts them, then dropped matching
+  rows from joins on the files (140 of 9 million in db-benchmark's join
+  q5). The fix is in nanoparquet's development version.
+
 * First version: `arena_run()` runs 15 dplyr tasks on up to seven backends,
   each in its own R process under a memory budget, and records time, peak
   memory, coverage and correctness with a snapshot of the machine

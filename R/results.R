@@ -11,7 +11,9 @@ suite_version <- "2026.1-dev"
 #' @returns An `arena_results` object: a list with
 #'   * `run`: the contents of `run.json`.
 #'   * `cells`: a tibble with one row per cell: `size`, `task`, `backend`,
-#'     `status`, `correct`, `seconds` (median over timed repetitions),
+#'     `source` (`"memory"` or `"parquet"`, see [arena_backends()]),
+#'     `status`, `correct`, `setup_seconds` (loading the data into the
+#'     backend, not timed), `seconds` (median over timed repetitions),
 #'     `warmup_seconds`, `peak_rss` (bytes, highest over repetitions),
 #'     `peak_rss_delta` (peak minus the memory in use before the pipeline
 #'     started), `spill_bytes`, and `reason` and `error` for cells that did
@@ -54,8 +56,10 @@ summarise_cells <- function(records) {
       task = character(),
       task_hash = character(),
       backend = character(),
+      source = character(),
       status = character(),
       correct = logical(),
+      setup_seconds = numeric(),
       seconds = numeric(),
       warmup_seconds = numeric(),
       peak_rss = numeric(),
@@ -123,8 +127,11 @@ summarise_cells <- function(records) {
     task = field("task", character(1)),
     task_hash = field("task_hash", character(1)),
     backend = field("backend", character(1)),
+    # Runs from before Parquet variants have no source.
+    source = replace_na(field("source", character(1)), "memory"),
     status = field("status", character(1)),
     correct = field("correct", logical(1)),
+    setup_seconds = field("setup_seconds", numeric(1)),
     seconds = seconds,
     warmup_seconds = warmup,
     peak_rss = peak,
@@ -185,6 +192,11 @@ as_scalar <- function(x, type) {
     return(type[NA_integer_])
   }
   as.vector(x[[1]], mode = typeof(type))
+}
+
+replace_na <- function(x, value) {
+  x[is.na(x)] <- value
+  x
 }
 
 median_or_na <- function(x) {

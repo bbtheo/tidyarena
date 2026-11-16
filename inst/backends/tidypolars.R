@@ -12,6 +12,9 @@ list(
   ),
   # Turns each table, `x`, named `name`, into the backend's form.
   convert = "polars::as_polars_df(x)",
+  # Reads the Parquet file at `path` itself: a lazy frame, so every query
+  # scans the file.
+  read = "polars::pl$scan_parquet(path)",
   setup = c(
     "library(dplyr)",
     "library(tidypolars)",

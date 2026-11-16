@@ -13,6 +13,10 @@
 # * `date_str`: a date from 2020 to 2024, as `"YYYY-MM-DD"`.
 # * `value`: an amount from 0 to 500.
 generate_strings <- function(n, seed, paths, options = list()) {
+  # No min/max statistics: nanoparquet 0.5.2 writes wrong ones for columns
+  # of more than one page, and readers that trust them, DuckDB among them,
+  # then skip rows that match.
+  no_minmax <- nanoparquet::parquet_options(write_minmax_values = FALSE)
   RNGkind("Mersenne-Twister", "Inversion", "Rejection")
   set.seed(seed)
   n <- as.integer(n)
@@ -90,7 +94,7 @@ generate_strings <- function(n, seed, paths, options = list()) {
     date_str = format(as.Date("2020-01-01") + sample.int(1827L, n, replace = TRUE) - 1L),
     value = round(stats::runif(n, 0, 500), 2)
   )
-  nanoparquet::write_parquet(customers, paths$customers, compression = "uncompressed")
+  nanoparquet::write_parquet(customers, paths$customers, compression = "uncompressed", options = no_minmax)
   list(customers = list(
     nrow = n,
     value = sum(customers$value),

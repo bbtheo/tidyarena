@@ -14,7 +14,8 @@ not asked to download prebuilt libraries (arrow's C++ library, polars'
 Rust library).}
 
 \item{exclude}{Backend ids to leave out: they are not installed, offered
-or run unless you name them. dplyr, the reference for the others, can't
+or run unless you name them. Leaving out a backend leaves out its
+Parquet variant too; \code{"arrow_parquet"} leaves out only the variant. dplyr, the reference for the others, can't
 be left out. Use \code{character()} to include every backend again.}
 
 \item{build}{What \code{\link[=arena_install]{arena_install()}} does with packages that have no

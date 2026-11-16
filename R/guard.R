@@ -76,7 +76,11 @@ run_worker <- function(spec, budget, timeout, guard, log, setup_timeout = timeou
       R_LIBS = paste(spec$libpath, collapse = .Platform$path.sep),
       TMPDIR = spec$tmpdir,
       TMP = spec$tmpdir,
-      TEMP = spec$tmpdir
+      TEMP = spec$tmpdir,
+      # Every machine runs in the same time zone. Engines that work in the
+      # session's time zone (DuckDB with UTC timestamps read from Parquet)
+      # would otherwise give results that depend on where the machine is.
+      TZ = "UTC"
     ),
     cleanup_tree = TRUE
   )

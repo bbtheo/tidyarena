@@ -52,6 +52,7 @@ fields:
 | `install` | none | For backends that need more than CRAN: `github`, packages installed from the latest release of a GitHub repository (`c(pkg = "owner/repo")`); `repos`, extra repositories; and `env`, environment variables for building from source (for example to download a prebuilt library). See `tidypolars.R` and `arrow.R`. Prefer releases to repositories that build the development branch, such as most of R-universe: results should change when a release does, not with every commit. With `arena_config(only_cran = TRUE)`, backends with `github` or `repos` are not installed and `env` is ignored. |
 | `install_hint` | none | For backends tidyarena can't install at all: how to install them, as text or a function returning text. Backends on CRAN are installed from Posit Package Manager. |
 | `diagnose` | none | A self-contained function that checks the backend's own dependencies, run before each run. See `cuplyr.R`. |
+| `read` | none | For backends that can read Parquet files themselves: an expression that reads the table named `name` from the file at `path`, the way a user of the backend would (`arrow::open_dataset(path)`). The backend then also runs as `<id>_parquet`, which gets the files instead of data frames. The report compares it with the backend given data frames. |
 
 Backends that can spill to disk should set their memory limit from
 `.budget_mb`, as `duckplyr.R` does.

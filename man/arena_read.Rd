@@ -14,7 +14,9 @@ An \code{arena_results} object: a list with
 \itemize{
 \item \code{run}: the contents of \code{run.json}.
 \item \code{cells}: a tibble with one row per cell: \code{size}, \code{task}, \code{backend},
-\code{status}, \code{correct}, \code{seconds} (median over timed repetitions),
+\code{source} (\code{"memory"} or \code{"parquet"}, see \code{\link[=arena_backends]{arena_backends()}}),
+\code{status}, \code{correct}, \code{setup_seconds} (loading the data into the
+backend, not timed), \code{seconds} (median over timed repetitions),
 \code{warmup_seconds}, \code{peak_rss} (bytes, highest over repetitions),
 \code{peak_rss_delta} (peak minus the memory in use before the pipeline
 started), \code{spill_bytes}, and \code{reason} and \code{error} for cells that did

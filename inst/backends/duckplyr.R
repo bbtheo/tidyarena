@@ -5,6 +5,9 @@ list(
   fallback_pattern = "falling back|fallback",
   # Turns each table, `x`, named `name`, into the backend's form.
   convert = "duckplyr::as_duckdb_tibble(x)",
+  # Reads the Parquet file at `path` itself, lazily, and as willing to
+  # materialise results as as_duckdb_tibble() is.
+  read = "duckplyr::read_parquet_duckdb(path, prudence = 'lavish')",
   setup = c(
     # Report fallbacks as messages, and never upload them.
     "Sys.setenv(DUCKPLYR_FALLBACK_INFO = 'TRUE', DUCKPLYR_FALLBACK_COLLECT = '0')",

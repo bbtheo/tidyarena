@@ -35,7 +35,8 @@ backend_fields <- list(
     "requires",
     "diagnose",
     "install",
-    "install_hint"
+    "install_hint",
+    "read"
   )
 )
 
@@ -62,13 +63,17 @@ check_def <- function(def, id, kind, fields, call = rlang::caller_env()) {
 }
 
 # Backend definitions, the anchor first, with defaults filled in: not a GPU
-# backend, a memory factor of 3, and dplyr's collect() and compute().
+# backend, a memory factor of 3, and dplyr's collect() and compute(). A
+# backend with a `read` field also gets a Parquet variant, `<id>_parquet`,
+# right after it: the same backend reading the tables from their Parquet
+# files itself instead of from the data frames in R. `source` says which
+# (`"memory"` or `"parquet"`) and `base` is the backend's own id.
 backend_defs <- function() {
   defs <- read_defs("backends")
   defs <- defs[union(anchor_backend, names(defs))]
+  out <- list()
   for (id in names(defs)) {
     def <- check_def(defs[[id]], id, "backends", backend_fields)
-    def$setup <- c(def$setup, paste0(".convert <- function(x, name) ", def$convert))
     if (!any(grepl("^\\s*\\.collect\\s*<-", def$setup))) {
       def$setup <- c(def$setup, ".collect <- function(x) dplyr::collect(x)")
     }
@@ -77,9 +82,21 @@ backend_defs <- function() {
     }
     def$gpu <- def$gpu %||% FALSE
     def$mem_factor <- def$mem_factor %||% 3
-    defs[[id]] <- def
+    def$base <- id
+    read <- def$read
+    def$read <- NULL
+    memory <- def
+    memory$source <- "memory"
+    memory$setup <- c(def$setup, paste0(".convert <- function(x, name) ", def$convert))
+    out[[id]] <- memory
+    if (!is.null(read)) {
+      parquet <- def
+      parquet$source <- "parquet"
+      parquet$setup <- c(def$setup, paste0(".read <- function(path, name) ", read))
+      out[[paste0(id, "_parquet")]] <- parquet
+    }
   }
-  defs
+  out
 }
 
 # Task definitions with defaults filled in, followed by the `.by` twins of

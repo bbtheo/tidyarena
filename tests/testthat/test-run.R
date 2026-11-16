@@ -107,3 +107,20 @@ test_that("a setup that takes too long is stopped on its own limit", {
   expect_equal(result$status, "setup_timeout")
   expect_lt(as.double(Sys.time() - t0, units = "secs"), 20)
 })
+
+test_that("a Parquet variant reads the files itself", {
+  skip_if_not_installed("dplyr")
+  withr::local_envvar(R_USER_CACHE_DIR = withr::local_tempdir())
+  defs <- backend_defs()
+  defs$dplyr_parquet <- defs$dplyr
+  defs$dplyr_parquet$source <- "parquet"
+  defs$dplyr_parquet$setup <- c(
+    defs$dplyr$setup[!grepl("^\\.convert", defs$dplyr$setup)],
+    # A data frame in R here would mean the worker read the file.
+    ".read <- function(path, name) { stopifnot(is.character(path)); tibble::as_tibble(nanoparquet::read_parquet(path)) }"
+  )
+  local_mocked_bindings(backend_defs = function() defs)
+  cells <- suppressMessages(conformance("filter_rows", c("dplyr", "dplyr_parquet"), 100, .libPaths()))
+  expect_equal(cells$status, c("ok", "ok"))
+  expect_true(cells$correct[[2]])
+})

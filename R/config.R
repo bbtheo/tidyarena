@@ -12,7 +12,8 @@
 #'   not asked to download prebuilt libraries (arrow's C++ library, polars'
 #'   Rust library).
 #' @param exclude Backend ids to leave out: they are not installed, offered
-#'   or run unless you name them. dplyr, the reference for the others, can't
+#'   or run unless you name them. Leaving out a backend leaves out its
+#'   Parquet variant too; `"arrow_parquet"` leaves out only the variant. dplyr, the reference for the others, can't
 #'   be left out. Use `character()` to include every backend again.
 #' @param build What [arena_install()] does with packages that have no
 #'   binary for your platform: `"never"` stops and lists them, `"capped"`
@@ -101,6 +102,8 @@ print_config <- function(config) {
 # The backends used when none are named: those available, minus the ones
 # left out.
 default_backends <- function(backends) {
-  excluded <- backends$backend %in% read_config()$exclude
+  exclude <- read_config()$exclude
+  base <- vapply(backend_defs()[backends$backend], function(d) d$base %||% "", character(1))
+  excluded <- backends$backend %in% exclude | base %in% exclude
   backends$backend[backends$available & !excluded]
 }

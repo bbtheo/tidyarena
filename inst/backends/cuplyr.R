@@ -14,6 +14,10 @@ list(
   ),
   # Turns each table, `x`, named `name`, into the backend's form.
   convert = "cuplyr::tbl_gpu(x)",
+  # Reads the Parquet file at `path` itself, decoded on the GPU by libcudf: a
+  # lazy scan, so every query reads the columns it uses from the file. Since
+  # cuplyr 0.1.1.9000 (d838d5f).
+  read = "cuplyr::read_parquet_gpu(path, lazy = TRUE)",
   setup = c(
     "library(dplyr)",
     "library(cuplyr)"

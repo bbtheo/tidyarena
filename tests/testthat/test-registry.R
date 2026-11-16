@@ -77,3 +77,18 @@ test_that("tasks have a stable hash of their code", {
   expect_equal(task_hash("df |> count(g_low)"), task_hash("df |> count(g_low)"))
   expect_false(task_hash("df |> count(g_low)") == task_hash("df |> count(g_high)"))
 })
+
+test_that("a backend that reads Parquet gets a Parquet variant", {
+  defs <- backend_defs()
+  arrow <- defs$arrow_parquet
+  expect_equal(arrow$source, "parquet")
+  expect_equal(arrow$base, "arrow")
+  expect_equal(defs$arrow$source, "memory")
+  expect_true(any(grepl("^\\.read <- function\\(path, name\\)", arrow$setup)))
+  expect_false(any(grepl("^\\.convert <-", arrow$setup)))
+  expect_null(arrow$read)
+  # Right after its base backend.
+  expect_equal(match("arrow_parquet", names(defs)), match("arrow", names(defs)) + 1)
+  expect_false("dplyr_parquet" %in% names(defs))
+  expect_equal(defs$cuplyr_parquet$base, "cuplyr")
+})

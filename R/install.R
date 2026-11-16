@@ -70,12 +70,12 @@ arena_install <- function(
   only_cran <- only_cran %||% config$only_cran
   rlang::check_bool(only_cran)
   defs <- backend_defs()
+  if (!is.null(backends)) {
+    backends <- base_backends(check_ids(backends, names(defs), "backends"))
+  }
+  defs <- install_defs()
   ok <- vapply(names(defs), installable, logical(1), only_cran = only_cran)
-  backends <- check_ids(
-    backends %||% setdiff(names(defs)[ok], config$exclude),
-    names(defs),
-    "backends"
-  )
+  backends <- backends %||% setdiff(names(defs)[ok], config$exclude)
   inform_not_installable(backends[!ok[backends]], lib)
   backends <- backends[ok[backends]]
   if (length(backends) == 0) {
@@ -110,6 +110,19 @@ arena_install <- function(
   write_install_record(lib, repos, snapshot, refs)
   cli::cli_inform("Installed {.pkg {todo}} in {.path {lib}}.")
   invisible(lib)
+}
+
+# The backends as installed: one per package set, without the Parquet
+# variants, which install with their base backend.
+install_defs <- function() {
+  defs <- backend_defs()
+  defs[vapply(defs, function(d) identical(d$source %||% "memory", "memory"), logical(1))]
+}
+
+# The base backend of each backend id: `arrow` for `arrow_parquet`.
+base_backends <- function(backends) {
+  defs <- backend_defs()
+  unique(vapply(backends, function(b) defs[[b]]$base %||% b, character(1), USE.NAMES = FALSE))
 }
 
 abort_needs_build <- function(needs_build, call = rlang::caller_env()) {
@@ -538,10 +551,11 @@ offer_installs <- function(backends, install, libpath) {
 # here, except those left out with arena_config()). Backends tidyarena can't
 # install are reported apart, in `elsewhere`, when they were named.
 backend_status <- function(backends, libpath) {
-  defs <- backend_defs()
+  defs <- install_defs()
   config <- read_config()
   platform <- platform_info()
   runnable <- Filter(function(b) length(unmet_platform(b, platform)) == 0, names(defs))
+  backends <- if (!is.null(backends)) base_backends(backends)
   candidates <- union(anchor_backend, backends %||% setdiff(runnable, config$exclude))
   installed <- vapply(
     candidates,

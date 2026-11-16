@@ -54,6 +54,15 @@ arena_report <- function(x) {
   )
   print_lines(format_backends(backends))
 
+  sources <- source_summary(cells)
+  if (nrow(sources) > 0) {
+    cli::cli_h2("Data in R or read from Parquet")
+    cli::cli_text(
+      "Each Parquet variant, which reads the tables from their Parquet files, against the same backend given data frames: geometric mean time ratio (below 1, Parquet is faster), over the cells both ran correctly. Setup, untimed, is the median time to load the data."
+    )
+    print_lines(format_source_summary(sources))
+  }
+
   by_data <- dataset_summary(cells)
   if (length(unique(by_data$data)) > 1) {
     cli::cli_h2("Backends by data set")
@@ -273,6 +282,59 @@ diagnostic_lines <- function(diagnostics) {
     if (length(checks) > 0) paste0(backend, ": ", checks)
   }))
   stats::setNames(cli_escape(lines), rep("*", length(lines)))
+}
+
+# Every Parquet variant against its base backend, on the cells both ran
+# correctly.
+source_summary <- function(cells) {
+  defs <- backend_defs()
+  base <- vapply(cells$backend, function(b) defs[[b]]$base %||% b, character(1), USE.NAMES = FALSE)
+  variants <- unique(cells$backend[cells$source == "parquet" & base %in% cells$backend])
+  good <- cells$status == "ok" & cells$correct %in% TRUE
+  rows <- lapply(variants, function(v) {
+    b <- defs[[v]]$base
+    p <- cells[cells$backend == v & good, ]
+    m <- cells[cells$backend == b & good, ]
+    i <- match(paste(p$task, p$size), paste(m$task, m$size))
+    both <- !is.na(i)
+    p <- p[both, ]
+    m <- m[i[both], ]
+    coverage <- function(backend) {
+      attempted <- cells$backend == backend & cells$status != "skipped"
+      if (any(attempted)) mean(good[attempted]) else NA_real_
+    }
+    tibble::tibble(
+      backend = b,
+      parquet_coverage = coverage(v),
+      memory_coverage = coverage(b),
+      cells = nrow(p),
+      time_ratio = geo_mean(p$seconds / m$seconds),
+      compute_ratio = geo_mean(p$compute_seconds / m$compute_seconds),
+      setup_memory = median_or_na(m$setup_seconds),
+      setup_parquet = median_or_na(p$setup_seconds)
+    )
+  })
+  if (length(rows) == 0) {
+    return(tibble::tibble())
+  }
+  do.call(rbind, rows)
+}
+
+format_source_summary <- function(sources) {
+  coverage <- function(x) ifelse(is.na(x), "-", sprintf("%.0f%%", 100 * x))
+  seconds <- function(x) ifelse(is.na(x), "-", sprintf("%.2fs", x))
+  table <- data.frame(
+    backend = sources$backend,
+    cells = sources$cells,
+    `time R` = format_ratio(sources$time_ratio),
+    `time compute` = format_ratio(sources$compute_ratio),
+    `coverage R` = coverage(sources$memory_coverage),
+    `coverage Parquet` = coverage(sources$parquet_coverage),
+    `setup R` = seconds(sources$setup_memory),
+    `setup Parquet` = seconds(sources$setup_parquet),
+    check.names = FALSE
+  )
+  utils::capture.output(print(table, row.names = FALSE))
 }
 
 # Coverage and time ratio of every backend on every data set.

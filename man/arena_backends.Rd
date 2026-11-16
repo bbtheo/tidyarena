@@ -9,12 +9,19 @@ arena_backends(libpath = default_libpath())
 \arguments{
 \item{libpath}{Library paths to look for the backend packages in. Defaults
 to the session's library paths, followed by \code{\link[=arena_lib]{arena_lib()}} when it
-exists.}
+exists.
+Backends that can read Parquet files themselves also come as a Parquet
+variant, \verb{<id>_parquet}: the same backend, given the paths of the tables'
+Parquet files instead of data frames. It shows what an engine does with
+data it reads itself, without the conversion from R's types (factors
+become strings, for example).}
 }
 \value{
 A tibble with one row per backend:
 \itemize{
 \item \code{backend}: backend id.
+\item \code{source}: where the backend gets the tables: \code{"memory"}, the data
+frames in R, or \code{"parquet"}, the Parquet files.
 \item \code{packages}: packages the backend needs.
 \item \code{gpu}: whether the backend runs on an NVIDIA GPU.
 \item \code{available}: whether all \code{packages} are installed in \code{libpath} and
@@ -26,14 +33,9 @@ capability or the CUDA version the driver supports.
 }
 \description{
 A backend is a small adapter: R code that turns the generated tables into
-the backend's own in-memory form, and a function that collects a result
-back into R. Setup is not timed; the pipeline and the collect are.
-}
-\details{
-Setup code runs with \code{df} and \code{lookup} bound to plain data frames and
-\code{.budget_mb} bound to the memory budget for the task, in megabytes. It must
-rebind \code{df} and \code{lookup} and define \code{.collect()}. Backends that can
-spill set their memory limit from \code{.budget_mb}.
+the backend's own form, and functions that collect a result back into R
+or compute it in the backend. Setup is not timed; the pipeline is. See
+\code{vignette("extending")}.
 }
 \examples{
 arena_backends()

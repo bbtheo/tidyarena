@@ -97,8 +97,14 @@ Results are written after every task. If a run is interrupted, call
 ## What is measured, and how
 
 - **Data** is generated from a fixed seed, so every machine runs on
-  identical tables (see `?arena_data`). It is loaded into each backend’s
-  own format before timing starts.
+  identical tables (see `?arena_data`), cached as Parquet files. It is
+  loaded into each backend's own format before timing starts. Backends
+  that read Parquet themselves (DuckDB through dbplyr and duckplyr, arrow,
+  Polars and cuplyr) also run as Parquet variants, `<id>_parquet`, which read
+  the files instead of being given data frames from R: the data then keeps
+  the engine's own types, and the report compares the two. Every task
+  runs with the time zone set to UTC, so that results don't depend on
+  where the machine is.
 - **Time** is measured twice, each from the data, because both answers
   are useful:
   - *in R*: the pipeline, `collect()`, and reading every value of the
