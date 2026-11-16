@@ -1,12 +1,11 @@
 # tidyarena (development version)
 
-* The tiers are now t-shirt sizes: `"xs"`, `"s"`, `"m"`, `"l"` and
-  `"xl"`, all with three timed repetitions except `"xl"`, which has five.
-  `"m"` and `"l"` have the sizes of the former `"standard"` and `"full"`,
-  `"xl"` is `"l"` with five repetitions. `"xs"` and `"s"` replace
-  `"quick"`: they run an eighth and a quarter of the tasks as in `"m"`,
-  taking the tasks the machine has run least often in finished runs, so
-  eight xs runs or four s runs cover one m run.
+* The tiers are now t-shirt sizes, all with three timed repetitions.
+  `"l"` runs every task at 1e6 to 1e8 rows, as `"standard"` did, and
+  `"xl"` adds 1e9, as `"full"` did. `"m"`, `"s"` and `"xs"` run a half, a
+  quarter and an eighth of the tasks as in `"l"`, taking the tasks the
+  machine has run least often in finished runs, so two m, four s or eight
+  xs runs cover one l run. They replace `"quick"`.
 
 * Backends that read Parquet files themselves also run as Parquet variants:
   `dbplyr_duckdb_parquet`, `duckplyr_parquet`, `arrow_parquet`,

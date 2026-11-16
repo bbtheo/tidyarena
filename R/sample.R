@@ -1,7 +1,7 @@
-# The "xs" and "s" tiers run a sample of the tasks with the settings of "m".
-# Each sample takes the tasks this machine has run least often in finished
-# runs of those tiers, so eight xs runs or four s runs cover the tasks of
-# one m run.
+# The "xs", "s" and "m" tiers run a sample of the tasks with the settings of
+# "l". Each sample takes the tasks this machine has run least often in
+# finished runs, so eight xs, four s or two m runs cover the tasks of one l
+# run.
 
 sample_tasks <- function(tasks, share, counts = task_counts()) {
   n <- min(length(tasks), ceiling(length(tasks) * share))
@@ -16,8 +16,8 @@ sample_tasks <- function(tasks, share, counts = task_counts()) {
   sort(utils::head(todo, n))
 }
 
-# How often each task ran, with its current code, in finished runs of the
-# tiers that sample m.
+# How often each task ran, with its current code, in finished runs. Every
+# tier runs the sizes of l, xl one more as well.
 task_counts <- function(dir = runs_dir()) {
   runs <- list.files(dir, full.names = TRUE)
   runs <- runs[file.exists(file.path(runs, "run.json"))]
@@ -39,7 +39,7 @@ task_counts <- function(dir = runs_dir()) {
   counts
 }
 
-sampled_tiers <- c("xs", "s", "m")
+sampled_tiers <- c("xs", "s", "m", "l", "xl")
 
 runs_dir <- function() {
   getOption("tidyarena.runs_dir", file.path(tools::R_user_dir("tidyarena", "data"), "runs"))

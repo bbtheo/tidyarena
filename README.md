@@ -70,12 +70,11 @@ run <- arena_run("xs")
 arena_report(run)
 ```
 
-Runs come in t-shirt sizes. `"m"` runs every task at 1e6, 1e7 and 1e8
-rows, with one warm-up and three timed repetitions per task. `"l"` adds
-1e9 rows, and `"xl"` is `"l"` with five repetitions. `"xs"` and `"s"` run
-an eighth and a quarter of the tasks as in `"m"`, taking the tasks this
-machine has run least often, so eight xs runs or four s runs cover one m
-run.
+Runs come in t-shirt sizes. `"l"` runs every task at 1e6, 1e7 and 1e8
+rows, and `"xl"` adds 1e9. `"m"`, `"s"` and `"xs"` run a half, a quarter
+and an eighth of the tasks as in `"l"`, taking the tasks this machine has
+run least often, so two m runs, four s runs or eight xs runs cover one l
+run. Every task runs one warm-up and three timed repetitions.
 
 `arena_report()` shows the fastest backend for every task, and for every
 backend its coverage and its time and memory relative to dplyr.

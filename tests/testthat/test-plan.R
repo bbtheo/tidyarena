@@ -1,5 +1,5 @@
 test_that("arena_plan() always includes the anchor", {
-  plan <- arena_plan("m", backends = character(), budget = 1e12)
+  plan <- arena_plan("l", backends = character(), budget = 1e12)
   expect_setequal(unique(plan$backend), anchor_backend)
   expect_setequal(unique(plan$size), c(1e6, 1e7, 1e8))
   expect_setequal(unique(plan$task), arena_tasks()$task)
@@ -31,14 +31,16 @@ test_that("arena_plan() skips tasks whose packages are missing", {
   expect_true(all(plan$action == "skip"))
 })
 
-test_that("xs and s run a sample of the tasks, with the settings of m", {
+test_that("xs, s and m run a sample of the tasks, with the settings of l", {
   n <- nrow(arena_tasks())
-  xs <- arena_plan("xs", backends = character(), budget = 1e12)
-  s <- arena_plan("s", backends = character(), budget = 1e12)
-  expect_length(unique(xs$task), ceiling(n / 8))
-  expect_length(unique(s$task), ceiling(n / 4))
-  expect_equal(unique(s$size), unique(arena_plan("m", backends = character())$size))
-  expect_equal(attr(xs, "settings")$reps, tier_settings("m")$reps)
+  for (tier in c("xs", "s", "m")) {
+    plan <- arena_plan(tier, backends = character(), budget = 1e12)
+    share <- c(xs = 1 / 8, s = 1 / 4, m = 1 / 2)[[tier]]
+    expect_length(unique(plan$task), ceiling(n * share))
+    expect_equal(unique(plan$size), c(1e6, 1e7, 1e8))
+    expect_equal(attr(plan, "settings")$reps, tier_settings("l")$reps)
+  }
+  xs <- arena_plan("xs", backends = character())
   # The same tasks each time, until a run finishes.
   expect_equal(unique(arena_plan("xs", backends = character())$task), unique(xs$task))
   expect_equal(unique(arena_plan("xs", backends = character(), tasks = "filter_rows")$task), "filter_rows")
@@ -59,7 +61,7 @@ test_that("successive samples cover every task before any repeats", {
   expect_length(sample_tasks(tasks, 1 / 8, counts), ceiling(length(tasks) / 8))
 })
 
-test_that("task_counts() counts finished runs of sampled tiers with unchanged tasks", {
+test_that("task_counts() counts finished runs with unchanged tasks", {
   dir <- withr::local_tempdir()
   hashes <- task_hashes(c("filter_rows", "summarise_lowcard"))
   write_run <- function(id, tier, finished = "2026-01-01", hashes_ = hashes) {
@@ -72,9 +74,9 @@ test_that("task_counts() counts finished runs of sampled tiers with unchanged ta
   }
   write_run("a", "xs")
   write_run("b", "m")
-  write_run("c", "l")
+  write_run("c", "xl")
   write_run("d", "s", finished = NULL)
   write_run("e", "s", hashes_ = c(filter_rows = "old"))
   counts <- task_counts(dir)
-  expect_equal(unname(counts[c("filter_rows", "summarise_lowcard", "arrange_two")]), c(2L, 2L, 0L))
+  expect_equal(unname(counts[c("filter_rows", "summarise_lowcard", "arrange_two")]), c(3L, 3L, 0L))
 })

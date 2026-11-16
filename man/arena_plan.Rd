@@ -45,21 +45,20 @@ misses.
 \section{Tiers}{
 
 \itemize{
-\item \code{"m"}: every task at 1e6, 1e7 and 1e8 rows, 3 timed repetitions.
-\item \code{"s"}: a quarter of the tasks, run as in \code{"m"}.
-\item \code{"xs"}: an eighth of the tasks, run as in \code{"m"}.
-\item \code{"l"}: every task at 1e6 to 1e9 rows, 3 timed repetitions.
-\item \code{"xl"}: as \code{"l"}, with 5 timed repetitions.
+\item \code{"l"}: every task at 1e6, 1e7 and 1e8 rows.
+\item \code{"m"}, \code{"s"} and \code{"xs"}: a half, a quarter and an eighth of the tasks,
+run as in \code{"l"}.
+\item \code{"xl"}: every task at 1e6 to 1e9 rows.
 }
 
-Every cell also runs one untimed warm-up first, recorded separately.
+Every cell runs one untimed warm-up and three timed repetitions.
 
-\code{"xs"} and \code{"s"} take the tasks this machine has run least often in
-finished \code{"xs"}, \code{"s"} and \code{"m"} runs (in the default run directory), so
-eight xs runs or four s runs in a row cover the tasks of one m run. The
-order is fixed for each machine, so \code{arena_plan()} shows the tasks
-\code{\link[=arena_run]{arena_run()}} would run, and different machines start with different
-tasks. With \code{tasks} given, those tasks run.
+\code{"xs"}, \code{"s"} and \code{"m"} take the tasks this machine has run least often
+in finished runs (in the default run directory), so two m runs, four s
+runs or eight xs runs in a row cover the tasks of one l run. The order is
+fixed for each machine, so \code{arena_plan()} shows the tasks \code{\link[=arena_run]{arena_run()}}
+would run, and different machines start with different tasks. With
+\code{tasks} given, those tasks run.
 }
 
 \examples{
