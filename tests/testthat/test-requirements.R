@@ -55,7 +55,7 @@ test_that("arena_backends() and arena_plan() say why a GPU backend can't run", {
   expect_false(cuplyr$available)
   expect_match(cuplyr$reason, "needs an NVIDIA GPU")
 
-  plan <- arena_plan("quick", backends = "cuplyr", tasks = "filter_rows")
+  plan <- arena_plan("s", backends = "cuplyr", tasks = "filter_rows")
   expect_match(plan$reason[plan$backend == "cuplyr"], "needs an NVIDIA GPU")
 })
 

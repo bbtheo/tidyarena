@@ -1,7 +1,7 @@
 # arena_plan() rejects unknown ids
 
     Code
-      arena_plan("quick", tasks = "nope")
+      arena_plan("s", tasks = "nope")
     Condition
       Error in `arena_plan()`:
       ! `tasks` has unknown id: "nope".

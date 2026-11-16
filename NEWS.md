@@ -1,5 +1,8 @@
 # tidyarena (development version)
 
+* The tiers are now t-shirt sizes: `"s"`, `"m"` and `"l"` replace
+  `"quick"`, `"standard"` and `"full"`.
+
 * Backends that read Parquet files themselves also run as Parquet variants:
   `dbplyr_duckdb_parquet`, `duckplyr_parquet`, `arrow_parquet`,
   `tidypolars_parquet` and `cuplyr_parquet` read the tables from their

@@ -5,7 +5,7 @@
 \title{Plan a benchmark run}
 \usage{
 arena_plan(
-  tier = c("quick", "standard", "full"),
+  tier = c("s", "m", "l"),
   backends = NULL,
   tasks = NULL,
   sizes = NULL,
@@ -14,7 +14,7 @@ arena_plan(
 )
 }
 \arguments{
-\item{tier}{One of \code{"quick"}, \code{"standard"} or \code{"full"}.}
+\item{tier}{The run's size: \code{"s"}, \code{"m"} or \code{"l"}.}
 
 \item{backends}{Backend ids to run, see \code{\link[=arena_backends]{arena_backends()}}. Defaults to
 every available backend, except those left out with \code{\link[=arena_config]{arena_config()}}.
@@ -45,14 +45,14 @@ misses.
 \section{Tiers}{
 
 \itemize{
-\item \code{"quick"}: 1e6 and 1e7 rows, 3 timed repetitions. About 15 minutes.
-\item \code{"standard"}: 1e6, 1e7 and 1e8 rows, 5 timed repetitions.
-\item \code{"full"}: 1e6 to 1e9 rows, 5 timed repetitions.
+\item \code{"s"}: 1e6 and 1e7 rows, 3 timed repetitions.
+\item \code{"m"}: 1e6, 1e7 and 1e8 rows, 5 timed repetitions.
+\item \code{"l"}: 1e6 to 1e9 rows, 5 timed repetitions.
 }
 
 Every cell also runs one untimed warm-up first, recorded separately.
 }
 
 \examples{
-arena_plan("quick")
+arena_plan("s")
 }

@@ -31,9 +31,9 @@ test_that("left-out backends are not planned unless named", {
   withr::local_envvar(R_USER_CONFIG_DIR = withr::local_tempdir())
   local_mocked_bindings(packages_installed = function(packages, lib) rep(TRUE, length(packages)))
   suppressMessages(arena_config(exclude = "dtplyr"))
-  plan <- arena_plan("quick", tasks = "filter_rows")
+  plan <- arena_plan("s", tasks = "filter_rows")
   expect_false("dtplyr" %in% plan$backend)
-  plan <- arena_plan("quick", backends = "dtplyr", tasks = "filter_rows")
+  plan <- arena_plan("s", backends = "dtplyr", tasks = "filter_rows")
   expect_true("dtplyr" %in% plan$backend)
 })
 

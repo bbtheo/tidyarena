@@ -27,6 +27,6 @@ over the cells where both the backend and dplyr ran correctly.
 }
 \examples{
 \dontrun{
-arena_report(arena_run("quick"))
+arena_report(arena_run("s"))
 }
 }

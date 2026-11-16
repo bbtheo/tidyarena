@@ -7,13 +7,13 @@
 #' misses.
 #'
 #' @section Tiers:
-#' * `"quick"`: 1e6 and 1e7 rows, 3 timed repetitions. About 15 minutes.
-#' * `"standard"`: 1e6, 1e7 and 1e8 rows, 5 timed repetitions.
-#' * `"full"`: 1e6 to 1e9 rows, 5 timed repetitions.
+#' * `"s"`: 1e6 and 1e7 rows, 3 timed repetitions.
+#' * `"m"`: 1e6, 1e7 and 1e8 rows, 5 timed repetitions.
+#' * `"l"`: 1e6 to 1e9 rows, 5 timed repetitions.
 #'
 #' Every cell also runs one untimed warm-up first, recorded separately.
 #'
-#' @param tier One of `"quick"`, `"standard"` or `"full"`.
+#' @param tier The run's size: `"s"`, `"m"` or `"l"`.
 #' @param backends Backend ids to run, see [arena_backends()]. Defaults to
 #'   every available backend, except those left out with [arena_config()].
 #'   The anchor backend, dplyr, is always included.
@@ -28,9 +28,9 @@
 #'   `est_peak` (bytes), `action` (`"run"` or `"skip"`) and `reason`.
 #' @export
 #' @examples
-#' arena_plan("quick")
+#' arena_plan("s")
 arena_plan <- function(
-  tier = c("quick", "standard", "full"),
+  tier = c("s", "m", "l"),
   backends = NULL,
   tasks = NULL,
   sizes = NULL,
@@ -121,9 +121,9 @@ r_baseline_bytes <- 300 * 2^20
 tier_settings <- function(tier) {
   switch(
     tier,
-    quick = list(sizes = c(1e6, 1e7), reps = 3L, timeout = 120),
-    standard = list(sizes = c(1e6, 1e7, 1e8), reps = 5L, timeout = 600),
-    full = list(sizes = c(1e6, 1e7, 1e8, 1e9), reps = 5L, timeout = 1800)
+    s = list(sizes = c(1e6, 1e7), reps = 3L, timeout = 120),
+    m = list(sizes = c(1e6, 1e7, 1e8), reps = 5L, timeout = 600),
+    l = list(sizes = c(1e6, 1e7, 1e8, 1e9), reps = 5L, timeout = 1800)
   )
 }
 

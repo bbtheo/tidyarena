@@ -3,7 +3,7 @@ local_tiny_run <- function(tasks = c("filter_rows", "summarise_lowcard"), env = 
   dir <- withr::local_tempdir(.local_envir = env)
   withr::local_envvar(R_USER_CACHE_DIR = withr::local_tempdir(.local_envir = env), .local_envir = env)
   suppressMessages(arena_run(
-    "quick",
+    "s",
     backends = "dplyr",
     tasks = tasks,
     sizes = 1e3,

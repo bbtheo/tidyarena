@@ -65,11 +65,11 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' run <- arena_run("quick")
+#' run <- arena_run("s")
 #' arena_report(run)
 #' }
 arena_run <- function(
-  tier = c("quick", "standard", "full"),
+  tier = c("s", "m", "l"),
   backends = NULL,
   tasks = NULL,
   sizes = NULL,

@@ -5,7 +5,7 @@
 \title{Run the benchmark}
 \usage{
 arena_run(
-  tier = c("quick", "standard", "full"),
+  tier = c("s", "m", "l"),
   backends = NULL,
   tasks = NULL,
   sizes = NULL,
@@ -16,7 +16,7 @@ arena_run(
 )
 }
 \arguments{
-\item{tier}{One of \code{"quick"}, \code{"standard"} or \code{"full"}.}
+\item{tier}{The run's size: \code{"s"}, \code{"m"} or \code{"l"}.}
 
 \item{backends}{Backend ids to run, see \code{\link[=arena_backends]{arena_backends()}}. Defaults to
 every available backend, except those left out with \code{\link[=arena_config]{arena_config()}}.
@@ -107,7 +107,7 @@ doesn't load is skipped, and the reason is in the results.
 
 \examples{
 \dontrun{
-run <- arena_run("quick")
+run <- arena_run("s")
 arena_report(run)
 }
 }

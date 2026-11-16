@@ -65,14 +65,14 @@ See what a run would do, then run it:
 ``` r
 library(tidyarena)
 
-arena_plan("quick")
-run <- arena_run("quick")
+arena_plan("s")
+run <- arena_run("s")
 arena_report(run)
 ```
 
-The quick tier runs 23 tasks at 1e6 and 1e7 rows, with one warm-up and
-three timed repetitions per task. `"standard"` adds 1e8 rows and
-`"full"` adds 1e9.
+Runs come in t-shirt sizes. `"s"` runs every task at 1e6 and 1e7 rows,
+with one warm-up and three timed repetitions per task. `"m"` adds 1e8
+rows and five repetitions, and `"l"` adds 1e9.
 
 `arena_report()` shows the fastest backend for every task, and for every
 backend its coverage and its time and memory relative to dplyr.

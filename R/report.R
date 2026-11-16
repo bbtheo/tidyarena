@@ -16,7 +16,7 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' arena_report(arena_run("quick"))
+#' arena_report(arena_run("s"))
 #' }
 arena_report <- function(x) {
   if (is.character(x)) {
