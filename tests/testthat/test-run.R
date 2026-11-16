@@ -5,8 +5,8 @@ test_that("arena_run() measures every repetition", {
   expect_equal(nrow(res$cells), 2)
   expect_true(all(res$cells$status == "ok"))
   expect_true(all(res$cells$correct))
-  # One warm-up plus three timed repetitions per cell.
-  expect_equal(nrow(res$reps), 2 * 4)
+  # One warm-up plus the timed repetitions per cell.
+  expect_equal(nrow(res$reps), 2 * (tier_settings("s")$reps + 1))
   expect_true(all(res$reps$seconds >= 0))
   if (Sys.info()[["sysname"]] == "Linux") {
     expect_true(all(res$reps$peak_rss >= res$reps$base_rss))

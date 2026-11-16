@@ -16,7 +16,7 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' arena_report(arena_run("s"))
+#' arena_report(arena_run("xs"))
 #' }
 arena_report <- function(x) {
   if (is.character(x)) {
@@ -30,6 +30,11 @@ arena_report <- function(x) {
 
   cli::cli_h1("tidyarena run {.val {x$run$run_id}}")
   cli::cli_text(machine_line(x$run$env))
+  if (identical(x$run$tier, "xs") || identical(x$run$tier, "s")) {
+    cli::cli_text(
+      "A {.val {x$run$tier}} run: {length(x$run$tasks)} of the {nrow(arena_tasks())} tasks, run as in {.val m}."
+    )
+  }
   notes <- setting_notes(x$run$env)
   if (length(notes) > 0) {
     cli::cli_alert_warning("Settings that can distort these results:")

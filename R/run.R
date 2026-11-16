@@ -65,11 +65,11 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' run <- arena_run("s")
+#' run <- arena_run("xs")
 #' arena_report(run)
 #' }
 arena_run <- function(
-  tier = c("s", "m", "l"),
+  tier = c("xs", "s", "m", "l"),
   backends = NULL,
   tasks = NULL,
   sizes = NULL,
@@ -337,7 +337,7 @@ new_run_dir <- function() {
     "-",
     paste(sample(c(0:9, letters[1:6]), 6, replace = TRUE), collapse = "")
   )
-  file.path(tools::R_user_dir("tidyarena", "data"), "runs", id)
+  file.path(runs_dir(), id)
 }
 
 new_run <- function(dir, plan, prefer = "session", diagnostics = list()) {

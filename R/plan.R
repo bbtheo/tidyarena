@@ -7,13 +7,21 @@
 #' misses.
 #'
 #' @section Tiers:
-#' * `"s"`: 1e6 and 1e7 rows, 3 timed repetitions.
-#' * `"m"`: 1e6, 1e7 and 1e8 rows, 5 timed repetitions.
-#' * `"l"`: 1e6 to 1e9 rows, 5 timed repetitions.
+#' * `"m"`: every task at 1e6, 1e7 and 1e8 rows, 5 timed repetitions.
+#' * `"s"`: a quarter of the tasks, run as in `"m"`.
+#' * `"xs"`: an eighth of the tasks, run as in `"m"`.
+#' * `"l"`: every task at 1e6 to 1e9 rows, 5 timed repetitions.
 #'
 #' Every cell also runs one untimed warm-up first, recorded separately.
 #'
-#' @param tier The run's size: `"s"`, `"m"` or `"l"`.
+#' `"xs"` and `"s"` take the tasks this machine has run least often in
+#' finished `"xs"`, `"s"` and `"m"` runs (in the default run directory), so
+#' eight xs runs or four s runs in a row cover the tasks of one m run. The
+#' order is fixed for each machine, so `arena_plan()` shows the tasks
+#' [arena_run()] would run, and different machines start with different
+#' tasks. With `tasks` given, those tasks run.
+#'
+#' @param tier The run's size: `"xs"`, `"s"`, `"m"` or `"l"`.
 #' @param backends Backend ids to run, see [arena_backends()]. Defaults to
 #'   every available backend, except those left out with [arena_config()].
 #'   The anchor backend, dplyr, is always included.
@@ -28,9 +36,9 @@
 #'   `est_peak` (bytes), `action` (`"run"` or `"skip"`) and `reason`.
 #' @export
 #' @examples
-#' arena_plan("s")
+#' arena_plan("xs")
 arena_plan <- function(
-  tier = c("s", "m", "l"),
+  tier = c("xs", "s", "m", "l"),
   backends = NULL,
   tasks = NULL,
   sizes = NULL,
@@ -50,7 +58,13 @@ arena_plan <- function(
   )
   backends <- union(anchor_backend, backends)
   all_tasks <- arena_tasks()
-  tasks <- check_ids(tasks %||% all_tasks$task, all_tasks$task, "tasks")
+  if (is.null(tasks)) {
+    tasks <- all_tasks$task
+    if (settings$share < 1) {
+      tasks <- sample_tasks(tasks, settings$share)
+    }
+  }
+  tasks <- check_ids(tasks, all_tasks$task, "tasks")
 
   cells <- expand.grid(
     backend = backends,
@@ -121,9 +135,10 @@ r_baseline_bytes <- 300 * 2^20
 tier_settings <- function(tier) {
   switch(
     tier,
-    s = list(sizes = c(1e6, 1e7), reps = 3L, timeout = 120),
-    m = list(sizes = c(1e6, 1e7, 1e8), reps = 5L, timeout = 600),
-    l = list(sizes = c(1e6, 1e7, 1e8, 1e9), reps = 5L, timeout = 1800)
+    xs = list(sizes = c(1e6, 1e7, 1e8), reps = 5L, timeout = 600, share = 1 / 8),
+    s = list(sizes = c(1e6, 1e7, 1e8), reps = 5L, timeout = 600, share = 1 / 4),
+    m = list(sizes = c(1e6, 1e7, 1e8), reps = 5L, timeout = 600, share = 1),
+    l = list(sizes = c(1e6, 1e7, 1e8, 1e9), reps = 5L, timeout = 1800, share = 1)
   )
 }
 
