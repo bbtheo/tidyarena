@@ -1,5 +1,11 @@
 # tidyarena (development version)
 
+* `arena_run()` without `dir` notices a run of the same cells that stopped
+  before it finished (by an error, an interrupt or the machine going down)
+  and asks whether to continue it. A run turned down is not offered again,
+  and a run still going in another R process is never resumed. A run that
+  stops says how to continue it.
+
 * A backend that falls back to dplyr fails the cell: the worker stops after
   the warm-up, the cell is `"fallback"` without times, and the task is not
   run at larger sizes on that backend.

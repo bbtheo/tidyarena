@@ -44,7 +44,8 @@ packages come from, and \code{build} decides whether packages without a
 binary are compiled.}
 
 \item{dir}{Directory for the results. Defaults to a new directory under
-\code{\link[tools:R_user_dir]{tools::R_user_dir()}}. Pass the directory of an earlier run to resume
+\code{\link[tools:R_user_dir]{tools::R_user_dir()}}, or to an unfinished run of the same cells if you
+choose to continue it. Pass the directory of an earlier run to resume
 it.}
 
 \item{part}{Parts of the suite to run, from 1 to 4, instead of the ones
@@ -58,6 +59,15 @@ Runs every planned cell (see \code{\link[=arena_plan]{arena_plan()}}) in its own
 size first, and writes results to \code{dir} after every cell. A run that is
 interrupted continues where it stopped when \code{arena_run()} is called again
 with the same \code{dir}.
+}
+\details{
+Without \code{dir}, \code{arena_run()} first looks for a run that stopped before it
+finished (by an error, an interrupt, or the machine going down) and would
+run the same cells: the same tasks, backends and sizes (and \code{budget}, if
+given), with unchanged task code. It asks whether to continue that run; if not, a new
+run starts, and the old one is not offered again. Outside an interactive
+session it does not ask and starts a new run. A run still going in another
+R process is never resumed.
 }
 \section{Safeguards}{
 

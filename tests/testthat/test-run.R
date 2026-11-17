@@ -193,3 +193,107 @@ test_that("a Parquet variant reads the files itself", {
   expect_equal(cells$status, c("ok", "ok"))
   expect_true(cells$correct[[2]])
 })
+
+# A run under runs_dir() that stopped after its first cell.
+local_unfinished_run <- function(env = parent.frame()) {
+  withr::local_options(tidyarena.runs_dir = withr::local_tempdir(.local_envir = env), .local_envir = env)
+  withr::local_envvar(R_USER_CACHE_DIR = withr::local_tempdir(.local_envir = env), .local_envir = env)
+  dir <- file.path(runs_dir(), "old")
+  suppressMessages(arena_run(
+    backends = "dplyr",
+    tasks = c("filter_rows", "summarise_lowcard"),
+    sizes = 1e3,
+    install = "never",
+    dir = dir
+  ))
+  run <- read_run_json(dir)
+  run$finished <- NULL
+  write_run_json(run, dir)
+  path <- file.path(dir, "results.jsonl")
+  writeLines(readLines(path)[[1]], path)
+  dir
+}
+
+rerun <- function() {
+  suppressMessages(arena_run(
+    backends = "dplyr",
+    tasks = c("filter_rows", "summarise_lowcard"),
+    sizes = 1e3,
+    install = "never"
+  ))
+}
+
+test_that("an unfinished run of the same cells is continued when the user agrees", {
+  skip_on_cran()
+  dir <- local_unfinished_run()
+  first <- readLines(file.path(dir, "results.jsonl"))[[1]]
+  withr::local_options(rlang_interactive = TRUE)
+  local_mocked_bindings(ask_yes_no = function(...) TRUE)
+  res <- rerun()
+  expect_equal(res$dir, dir)
+  expect_equal(nrow(res$cells), 2)
+  expect_identical(readLines(file.path(dir, "results.jsonl"))[[1]], first)
+  expect_false(is.null(read_run_json(dir)$finished))
+  expect_length(list.files(runs_dir()), 1)
+})
+
+test_that("an unfinished run turned down starts a new run and is not offered again", {
+  skip_on_cran()
+  dir <- local_unfinished_run()
+  withr::local_options(rlang_interactive = TRUE)
+  asked <- 0
+  local_mocked_bindings(ask_yes_no = function(...) {
+    asked <<- asked + 1
+    FALSE
+  })
+  res <- rerun()
+  expect_false(res$dir == dir)
+  expect_false(is.null(read_run_json(dir)$abandoned))
+  rerun()
+  expect_equal(asked, 1)
+  expect_length(list.files(runs_dir()), 3)
+})
+
+test_that("an unfinished run is not offered for other cells, or outside interactive sessions", {
+  skip_on_cran()
+  dir <- local_unfinished_run()
+  plan <- arena_plan(backends = "dplyr", tasks = "filter_rows", sizes = 1e3)
+  expect_null(find_unfinished(plan))
+  plan <- arena_plan(backends = "dplyr", tasks = c("filter_rows", "summarise_lowcard"), sizes = 1e3)
+  expect_equal(find_unfinished(plan), dir)
+  withr::local_options(rlang_interactive = FALSE)
+  expect_message(expect_null(offer_resume(plan)), "unfinished run")
+})
+
+test_that("a run still going in another process is not resumed", {
+  skip_on_cran()
+  dir <- local_unfinished_run()
+  lock_run(dir)
+  expect_true(run_active(dir))
+  plan <- arena_plan(backends = "dplyr", tasks = c("filter_rows", "summarise_lowcard"), sizes = 1e3)
+  expect_null(find_unfinished(plan))
+  expect_snapshot(error = TRUE, arena_run(dir = dir), transform = function(x) gsub("'[^']*old'", "<dir>", x))
+  writeLines(c("999999999", "0"), file.path(dir, "pid"))
+  expect_false(run_active(dir))
+})
+
+test_that("a run that stops says how to continue it", {
+  withr::local_options(tidyarena.runs_dir = withr::local_tempdir())
+  withr::local_envvar(R_USER_CACHE_DIR = withr::local_tempdir())
+  local_mocked_bindings(run_cell = function(...) stop("power cut"))
+  msgs <- character()
+  withCallingHandlers(
+    expect_error(
+      arena_run(backends = "dplyr", tasks = "filter_rows", sizes = 1e3, install = "never"),
+      "power cut"
+    ),
+    message = function(m) {
+      msgs <<- c(msgs, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
+  )
+  expect_match(msgs, "stopped before it finished", all = FALSE)
+  dir <- list.files(runs_dir(), full.names = TRUE)
+  expect_false(file.exists(file.path(dir, "pid")))
+  expect_null(read_run_json(dir)$finished)
+})

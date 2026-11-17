@@ -5,6 +5,14 @@
 #' interrupted continues where it stopped when `arena_run()` is called again
 #' with the same `dir`.
 #'
+#' Without `dir`, `arena_run()` first looks for a run that stopped before it
+#' finished (by an error, an interrupt, or the machine going down) and would
+#' run the same cells: the same tasks, backends and sizes (and `budget`, if
+#' given), with unchanged task code. It asks whether to continue that run; if not, a new
+#' run starts, and the old one is not offered again. Outside an interactive
+#' session it does not ask and starts a new run. A run still going in another
+#' R process is never resumed.
+#'
 #' @section Safeguards:
 #' Each task gets a memory budget. On Linux with systemd the budget is a hard
 #' limit enforced by the kernel (a cgroup with swap disabled), so a task that
@@ -70,7 +78,8 @@
 #'   packages come from, and `build` decides whether packages without a
 #'   binary are compiled.
 #' @param dir Directory for the results. Defaults to a new directory under
-#'   [tools::R_user_dir()]. Pass the directory of an earlier run to resume
+#'   [tools::R_user_dir()], or to an unfinished run of the same cells if you
+#'   choose to continue it. Pass the directory of an earlier run to resume
 #'   it.
 #' @returns The results, as returned by [arena_read()], invisibly.
 #' @export
@@ -93,11 +102,20 @@ arena_run <- function(
   tier <- rlang::arg_match(tier)
   install <- rlang::arg_match(install)
   libpath_given <- !missing(libpath)
+  offered <- FALSE
+  if (is.null(dir)) {
+    dir <- offer_resume(arena_plan(tier, backends, tasks, sizes, budget, libpath, part), budget)
+    offered <- !is.null(dir)
+  }
   resuming <- !is.null(dir) && file.exists(file.path(dir, "run.json"))
   if (resuming) {
+    check_not_active(dir)
     run <- read_run_json(dir)
-    check_resume(run, backends, tasks, sizes, part)
+    if (!offered) {
+      check_resume(run, backends, tasks, sizes, part)
+    }
     check_task_hashes(run)
+    run$abandoned <- NULL
     prefer <- run$prefer %||% "session"
     if (!libpath_given) {
       libpath <- default_libpath(prefer)
@@ -136,6 +154,20 @@ arena_run <- function(
     run <- new_run(dir, plan, prefer, checked$diagnostics)
   }
   settings <- attr(plan, "settings")
+  lock_run(dir)
+  finished <- FALSE
+  on.exit(
+    {
+      unlink(file.path(dir, "pid"))
+      if (!finished) {
+        cli::cli_inform(c(
+          "!" = "The run stopped before it finished.",
+          i = "Call {.fn arena_run} again with the same settings to continue it, or with {.code dir = {.str {dir}}}."
+        ))
+      }
+    },
+    add = TRUE
+  )
 
   dir.create(file.path(dir, "cells"), showWarnings = FALSE, recursive = TRUE)
   dir.create(file.path(dir, "logs"), showWarnings = FALSE)
@@ -206,6 +238,7 @@ arena_run <- function(
 
   run$finished <- format_time(Sys.time())
   write_run_json(run, dir)
+  finished <- TRUE
   unlink(file.path(dir, "cells"), recursive = TRUE)
 
   results <- arena_read(dir)
@@ -428,6 +461,122 @@ check_resume <- function(run, backends, tasks, sizes, part, call = rlang::caller
       c(
         "Can't change {.arg {names(given)}} when resuming a run.",
         i = "Resume with the same {.arg dir} only, or start a new run."
+      ),
+      call = call
+    )
+  }
+  invisible()
+}
+
+# A run that stopped before it finished, by a crash, an error or an
+# interrupt, and would run the same cells as `plan`: asks whether to continue
+# it, and returns its directory if so. A run turned down is not offered again.
+offer_resume <- function(plan, budget = NULL, dir = runs_dir()) {
+  path <- find_unfinished(plan, budget, dir)
+  if (is.null(path)) {
+    return(NULL)
+  }
+  run <- read_run_json(path)
+  n_done <- length(read_cells(file.path(path, "results.jsonl"))$records)
+  n_total <- nrow(plan)
+  started <- run$started
+  if (!rlang::is_interactive()) {
+    cli::cli_inform(c(
+      i = "An unfinished run of the same cells, started {started}, has {n_done} of {n_total} cell{?s} done.",
+      " " = "Starting a new run. To continue that one instead, call {.fn arena_run} with {.code dir = {.str {path}}}."
+    ))
+    return(NULL)
+  }
+  question <- c(
+    "An unfinished run of the same cells, started {started}, has {n_done} of {n_total} cell{?s} done.",
+    i = "It is in {.path {path}}.",
+    "Continue it? Otherwise a new run starts."
+  )
+  if (ask_yes_no(question)) {
+    return(path)
+  }
+  run$abandoned <- format_time(Sys.time())
+  write_run_json(run, path)
+  NULL
+}
+
+# The latest run under `dir` that didn't finish, isn't running and hasn't
+# been turned down, with the same suite, task code, tasks, backends and sizes
+# as `plan`, and the same budget if one is given. The default budget follows
+# the memory available at the time, so it is not compared.
+find_unfinished <- function(plan, budget = NULL, dir = runs_dir()) {
+  runs <- list.files(dir, full.names = TRUE)
+  runs <- runs[file.exists(file.path(runs, "run.json"))]
+  found <- NULL
+  latest <- ""
+  for (path in runs) {
+    run <- tryCatch(read_run_json(path), error = function(e) NULL)
+    if (
+      is.null(run) ||
+        !is.null(run$finished) ||
+        !is.null(run$abandoned) ||
+        !identical(run$suite_version, suite_version) ||
+        !same_cells(run, plan, budget) ||
+        run_active(path)
+    ) {
+      next
+    }
+    hashes_ok <- tryCatch(
+      {
+        check_task_hashes(run)
+        TRUE
+      },
+      error = function(e) FALSE
+    )
+    started <- run$started %||% ""
+    if (hashes_ok && started >= latest) {
+      found <- path
+      latest <- started
+    }
+  }
+  found
+}
+
+same_cells <- function(run, plan, budget = NULL) {
+  setequal(unlist(run$tasks), unique(plan$task)) &&
+    setequal(unlist(run$backends), unique(plan$backend)) &&
+    setequal(as.numeric(unlist(run$sizes)), unique(plan$size)) &&
+    (is.null(budget) || isTRUE(all.equal(as.numeric(run$budget), as.numeric(budget))))
+}
+
+# The R process running a run leaves its pid and start time in the run's
+# directory, so that a second arena_run() doesn't resume a run that is still
+# going. The start time tells the process apart from a later one with the
+# same pid, after a reboot.
+lock_run <- function(dir) {
+  self <- ps::ps_handle()
+  writeLines(
+    c(as.character(ps::ps_pid(self)), format(as.numeric(ps::ps_create_time(self)), digits = 15)),
+    file.path(dir, "pid")
+  )
+}
+
+run_active <- function(dir) {
+  path <- file.path(dir, "pid")
+  if (!file.exists(path)) {
+    return(FALSE)
+  }
+  lines <- readLines(path, warn = FALSE)
+  tryCatch(
+    {
+      p <- ps::ps_handle(as.integer(lines[[1]]))
+      ps::ps_is_running(p) && abs(as.numeric(ps::ps_create_time(p)) - as.numeric(lines[[2]])) < 1
+    },
+    error = function(e) FALSE
+  )
+}
+
+check_not_active <- function(dir, call = rlang::caller_env()) {
+  if (run_active(dir)) {
+    cli::cli_abort(
+      c(
+        "Can't resume {.path {dir}}: it is still running in another R process.",
+        i = "Wait for it to finish, or stop that process first."
       ),
       call = call
     )
