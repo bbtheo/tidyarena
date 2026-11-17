@@ -70,8 +70,13 @@ test_that("successive runs cover every part before any repeats", {
     counts[picked] <- counts[picked] + 1L
   }
   expect_setequal(seen, 1:4)
-  # Two parts taken across the end of a round are still two different parts.
-  expect_length(unique(pick_parts(2, 1e6, c(1L, 1L, 1L, 0L))), 2)
+  # Parts taken across the end of a round are still different parts, on
+  # every machine.
+  for (seed in as.character(1:50)) {
+    local_mocked_bindings(sample_seed = function() seed)
+    expect_length(unique(pick_parts(2, 1e6, c(1L, 1L, 1L, 0L))), 2)
+    expect_length(unique(pick_parts(3, 1e6, c(2L, 1L, 2L, 2L))), 3)
+  }
 })
 
 test_that("part_counts() counts finished runs of whole parts at the sizes, with unchanged tasks", {

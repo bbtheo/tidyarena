@@ -6,18 +6,20 @@
 
 n_parts <- 4L
 
-pick_parts <- function(n, sizes, counts = part_counts(sizes)) {
-  round <- min(counts)
-  todo <- which(counts == round)
+pick_parts <- function(n, sizes, counts = part_counts(sizes), exclude = integer()) {
+  open <- setdiff(seq_along(counts), exclude)
+  round <- min(counts[open])
+  todo <- open[counts[open] == round]
   # A fixed order for this machine and round, so that arena_plan() and
   # arena_run() pick the same parts, and different machines different ones.
   key <- vapply(paste(sample_seed(), round, todo), cli::hash_md5, character(1))
   todo <- todo[order(key)]
   picked <- utils::head(todo, n)
   if (length(picked) < n) {
-    # The round ends: take the rest from the next one.
+    # The round ends: take the rest from the next one, without the parts
+    # already picked.
     counts[picked] <- counts[picked] + 1L
-    picked <- c(picked, pick_parts(n - length(picked), sizes, counts))
+    picked <- c(picked, pick_parts(n - length(picked), sizes, counts, c(exclude, picked)))
   }
   sort(picked)
 }
