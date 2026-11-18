@@ -42,8 +42,9 @@ Suggests:
     duckdb,
     knitr,
     pak,
+    quarto,
     rmarkdown,
     testthat (>= 3.0.0),
     withr
 Config/testthat/edition: 3
-VignetteBuilder: knitr
+VignetteBuilder: quarto

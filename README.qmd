@@ -1,17 +1,12 @@
 ---
-output: github_document
+format: gfm
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: "#>"
 ---
 
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.path = "man/figures/README-",
-  out.width = "100%"
-)
-```
+<!-- README.md is generated from README.qmd. Please edit that file -->
 
 # tidyarena
 
@@ -46,7 +41,8 @@ pak::pak("bbtheo/tidyarena")
 Then install the backends you want to compare. `arena_install()` puts them
 in a library of their own, so they never mix with your packages:
 
-```{r, eval = FALSE}
+```{r}
+#| eval: false
 tidyarena::arena_install(c("dtplyr", "duckplyr", "dbplyr_duckdb", "arrow"))
 ```
 
@@ -73,7 +69,8 @@ are not installed are skipped.
 
 See what a run would do, then run it:
 
-```{r, eval = FALSE}
+```{r}
+#| eval: false
 library(tidyarena)
 
 arena_plan("xs")

@@ -1,5 +1,6 @@
 ^LICENSE\.md$
-^README\.Rmd$
+^README\.qmd$
 ^\.github$
 ^dev-lib$
 ^dev-lib-install\.log$
+^\.quarto$

@@ -1,15 +1,15 @@
 ---
 title: "Adding a task or a backend"
-output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Adding a task or a backend}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: "#>"
+    eval: false
 ---
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
-```
 
 tidyarena's tasks and backends are files, one per id: `inst/tasks/<id>.R`
 and `inst/backends/<id>.R`. Each file is R code that ends with a list of
