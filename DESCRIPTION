@@ -16,6 +16,8 @@ Description: Runs one suite of 'dplyr' pipelines on many backends
     benchmark run cannot exhaust the machine. Results are written in a
     documented format meant for comparison across machines.
 License: MPL (>= 2)
+URL: https://github.com/bbtheo/tidyarena
+BugReports: https://github.com/bbtheo/tidyarena/issues
 Copyright: See inst/COPYRIGHTS
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

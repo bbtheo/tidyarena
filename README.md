@@ -7,6 +7,7 @@
 
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![R-CMD-check](https://github.com/bbtheo/tidyarena/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/bbtheo/tidyarena/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 tidyarena benchmarks dplyr backends against each other with the same
