@@ -130,7 +130,8 @@ arena_plan <- function(
   cells$reason[over] <- "over memory budget"
   gpu <- defs[cells$backend] |> vapply(`[[`, logical(1), "gpu") |> unname()
   if (any(gpu)) {
-    vram <- gpu_info()[[1]]$memory %||% 0
+    gpus <- platform_info()$gpus
+    vram <- if (length(gpus)) gpus[[1]]$memory %||% 0 else 0
     gpu_peak <- bytes * (1 + backend_factor * task_factor)
     over_gpu <- !skip & !over & gpu & gpu_peak > 0.8 * vram
     cells$reason[over_gpu] <- "over GPU memory"
