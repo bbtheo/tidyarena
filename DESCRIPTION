@@ -35,21 +35,13 @@ Imports:
     tools,
     utils
 Suggests: 
-    arrow,
-    cuplyr,
-    data.table,
     DBI,
-    dbplyr,
     dplyr,
-    dtplyr,
     duckdb,
-    duckplyr,
     knitr,
     pak,
-    polars,
     rmarkdown,
     testthat (>= 3.0.0),
-    tidypolars,
     withr
 Config/testthat/edition: 3
 VignetteBuilder: knitr
