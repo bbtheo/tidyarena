@@ -72,12 +72,12 @@ arena_report(run)
 ```
 
 Runs come in t-shirt sizes. The tasks are split into four parts with
-similar run times and a similar mix of data sets. `"xs"` runs one part at
-1e6 rows, `"s"` one part and `"m"` two parts at 1e6 and 1e7 rows, `"l"`
-every task at 1e6 and 1e7 rows, and `"xl"` every task at up to 1e8 rows.
-Each run takes the parts this machine has run least often, so four s runs
-or two m runs give the same cells as one l run: every cell runs one
-warm-up and three timed repetitions, the same in every tier.
+similar run times and a similar mix of data sets. `"xs"` runs one part
+at 1e6 rows, `"s"` one part and `"m"` two parts at 1e6 and 1e7 rows,
+`"l"` every task at 1e6 and 1e7 rows, and `"xl"` every task at up to 1e8
+rows. Each run takes the parts this machine has run least often, so four
+s runs or two m runs give the same cells as one l run: every cell runs
+one warm-up and three timed repetitions, the same in every tier.
 
 `arena_report()` shows the fastest backend for every task, and for every
 backend its coverage and its time and memory relative to dplyr.
@@ -103,13 +103,13 @@ Results are written after every task. If a run is interrupted, call
 
 - **Data** is generated from a fixed seed, so every machine runs on
   identical tables (see `?arena_data`), cached as Parquet files. It is
-  loaded into each backend's own format before timing starts. Backends
-  that read Parquet themselves (DuckDB through dbplyr and duckplyr, arrow,
-  Polars and cuplyr) also run as Parquet variants, `<id>_parquet`, which read
-  the files instead of being given data frames from R: the data then keeps
-  the engine's own types, and the report compares the two. Every task
-  runs with the time zone set to UTC, so that results don't depend on
-  where the machine is.
+  loaded into each backend’s own format before timing starts. Backends
+  that read Parquet themselves (DuckDB through dbplyr and duckplyr,
+  arrow, Polars and cuplyr) also run as Parquet variants,
+  `<id>_parquet`, which read the files instead of being given data
+  frames from R: the data then keeps the engine’s own types, and the
+  report compares the two. Every task runs with the time zone set to
+  UTC, so that results don’t depend on where the machine is.
 - **Time** is measured twice, each from the data, because both answers
   are useful:
   - *in R*: the pipeline, `collect()`, and reading every value of the
