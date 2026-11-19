@@ -11,7 +11,9 @@
 #' Some packages may still have no binary for your platform. They would have
 #' to be compiled, and compiling packages such as duckdb or arrow takes a long
 #' time and a lot of memory. By default `arena_install()` stops and lists
-#' them. With `build = "capped"` it compiles them, one package at a time, with
+#' them; in an interactive session it first asks whether to compile them, and
+#' whether to always do so (which saves `arena_config(build = "capped")`).
+#' With `build = "capped"` it compiles them, one package at a time, with
 #' a number of parallel compile jobs chosen from free memory and, on Linux
 #' with systemd, inside a memory limit with swap disabled, so a build that
 #' runs out of memory is stopped instead of freezing the machine.
@@ -43,7 +45,8 @@
 #'   by that date.
 #' @param build What to do when a package has no binary: `"never"` to stop
 #'   and list the packages, `"capped"` to compile them with the limits
-#'   described above. Defaults to the setting in [arena_config()].
+#'   described above. Defaults to the setting in [arena_config()]; only then
+#'   does an interactive session ask before stopping.
 #' @param update If `TRUE`, also install newer versions of backend packages
 #'   that are already installed.
 #' @param only_cran If `TRUE`, only install from CRAN. Defaults to the
@@ -65,6 +68,7 @@ arena_install <- function(
 ) {
   rlang::check_installed("pak", reason = "to install backends.")
   config <- read_config()
+  build_given <- !is.null(build)
   build <- build %||% config$build
   build <- rlang::arg_match(build, c("never", "capped"))
   only_cran <- only_cran %||% config$only_cran
@@ -103,7 +107,9 @@ arena_install <- function(
   cli::cli_inform("Resolving {.pkg {refs}} from {.url {repos}}.")
   needs_build <- packages_to_build(refs, lib, repos)
   if (length(needs_build) > 0 && build == "never") {
-    abort_needs_build(needs_build)
+    if (build_given || !confirm_build(needs_build)) {
+      abort_needs_build(needs_build)
+    }
   }
 
   install_packages(refs, lib, repos, needs_build, sources$env)
@@ -145,6 +151,30 @@ abort_needs_build <- function(needs_build, call = rlang::caller_env()) {
     class = "tidyarena_needs_build",
     call = call
   )
+}
+
+# In interactive sessions, when the settings say not to compile: asks
+# whether to compile `needs_build` now, and if so whether to always do so.
+# Signals `tidyarena_build_confirmed` when the answer is yes.
+confirm_build <- function(needs_build) {
+  if (!rlang::is_interactive()) {
+    return(FALSE)
+  }
+  question <- c(
+    "{length(needs_build)} package{?s} {?has/have} no binary for this platform: {.pkg {needs_build}}.",
+    "Compile {?it/them} with a memory limit? This can take a long time."
+  )
+  if (!ask_yes_no(question)) {
+    return(FALSE)
+  }
+  if (ask_yes_no("Always compile packages that have no binary, without asking?")) {
+    config <- read_config()
+    config$build <- "capped"
+    write_config(config)
+    cli::cli_inform(c(v = "Saved: {.code arena_config(build = \"capped\")}. {.code arena_config(build = \"never\")} undoes it."))
+  }
+  rlang::signal("", class = "tidyarena_build_confirmed")
+  TRUE
 }
 
 inform_not_installable <- function(backends, lib) {
@@ -581,12 +611,18 @@ backend_status <- function(backends, libpath) {
 }
 
 # Installs backends one at a time, so that one that would need compiling
-# doesn't stop the others.
+# doesn't stop the others. The answer to whether to compile holds for the
+# backends after it, so it is asked at most once.
 install_backends <- function(backends, update = FALSE) {
+  build <- NULL
   for (backend in backends) {
     tryCatch(
-      arena_install(backend, update = update),
+      withCallingHandlers(
+        arena_install(backend, update = update, build = build),
+        tidyarena_build_confirmed = function(e) build <<- "capped"
+      ),
       tidyarena_needs_build = function(e) {
+        build <<- "never"
         cli::cli_inform(c(
           "!" = "Skipping {.val {backend}}: it would have to be compiled.",
           i = "Use {.code arena_install({.str {backend}}, build = \"capped\")} to compile it with a memory limit,",

@@ -1,5 +1,10 @@
 # tidyarena (development version)
 
+* `arena_install()` asks in interactive sessions whether to compile
+  packages that have no binary, and whether to always do so (saving
+  `arena_config(build = "capped")`). Inside `arena_run()` it asks once for
+  all backends.
+
 * `arena_run()` without `dir` notices a run of the same cells that stopped
   before it finished (by an error, an interrupt or the machine going down)
   and asks whether to continue it. A run turned down is not offered again,

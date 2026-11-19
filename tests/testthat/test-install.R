@@ -153,3 +153,90 @@ test_that("arena_install() of only backends it can't install just gives the hint
   expect_match(paste(messages, collapse = ""), "Can't install")
   expect_no_match(paste(messages, collapse = ""), "up to date")
 })
+
+local_needs_build <- function(env = parent.frame()) {
+  installs <- new.env()
+  installs$n <- 0
+  local_mocked_bindings(
+    packages_to_build = function(...) c("duckdb", "cli"),
+    ppm_binaries = function() FALSE,
+    binary_target = function() NULL,
+    platform_label = function() "x86_64-pc-linux-gnu-somedistro",
+    install_packages = function(...) installs$n <- installs$n + 1,
+    write_install_record = function(...) invisible(),
+    .env = env
+  )
+  installs
+}
+
+local_answers <- function(answers, env = parent.frame()) {
+  asked <- new.env()
+  asked$n <- 0
+  local_mocked_bindings(
+    ask_yes_no = function(...) {
+      asked$n <- asked$n + 1
+      answers[[asked$n]]
+    },
+    .env = env
+  )
+  asked
+}
+
+test_that("arena_install() asks whether to compile, and whether to always do so", {
+  skip_if_not_installed("pak")
+  installs <- local_needs_build()
+  lib <- withr::local_tempdir()
+  rlang::local_interactive(TRUE)
+
+  asked <- local_answers(c(TRUE, FALSE))
+  suppressMessages(arena_install("duckplyr", lib = lib))
+  expect_equal(installs$n, 1)
+  expect_equal(asked$n, 2)
+  expect_equal(read_config()$build, "never")
+
+  asked <- local_answers(c(TRUE, TRUE))
+  suppressMessages(arena_install("duckplyr", lib = lib))
+  expect_equal(installs$n, 2)
+  expect_equal(read_config()$build, "capped")
+
+  # Saved: no more questions.
+  local_mocked_bindings(ask_yes_no = function(...) stop("should not ask"))
+  suppressMessages(arena_install("duckplyr", lib = lib))
+  expect_equal(installs$n, 3)
+  arena_config(reset = TRUE) |> suppressMessages()
+})
+
+test_that("arena_install() stops when compiling is turned down or build is given", {
+  skip_if_not_installed("pak")
+  installs <- local_needs_build()
+  lib <- withr::local_tempdir()
+  rlang::local_interactive(TRUE)
+
+  asked <- local_answers(FALSE)
+  expect_error(suppressMessages(arena_install("duckplyr", lib = lib)), class = "tidyarena_needs_build")
+  expect_equal(asked$n, 1)
+
+  local_mocked_bindings(ask_yes_no = function(...) stop("should not ask"))
+  expect_error(
+    suppressMessages(arena_install("duckplyr", lib = lib, build = "never")),
+    class = "tidyarena_needs_build"
+  )
+  expect_equal(installs$n, 0)
+})
+
+test_that("install_backends() asks whether to compile only once", {
+  skip_if_not_installed("pak")
+  installs <- local_needs_build()
+  withr::local_envvar(R_USER_DATA_DIR = withr::local_tempdir())
+  rlang::local_interactive(TRUE)
+
+  asked <- local_answers(c(TRUE, FALSE))
+  suppressMessages(install_backends(c("duckplyr", "arrow")))
+  expect_equal(asked$n, 2)
+  expect_equal(installs$n, 2)
+
+  asked <- local_answers(FALSE)
+  suppressMessages(install_backends(c("duckplyr", "arrow")))
+  expect_equal(asked$n, 1)
+  expect_equal(installs$n, 2)
+})

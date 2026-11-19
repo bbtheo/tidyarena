@@ -28,7 +28,8 @@ by that date.}
 
 \item{build}{What to do when a package has no binary: \code{"never"} to stop
 and list the packages, \code{"capped"} to compile them with the limits
-described above. Defaults to the setting in \code{\link[=arena_config]{arena_config()}}.}
+described above. Defaults to the setting in \code{\link[=arena_config]{arena_config()}}; only then
+does an interactive session ask before stopping.}
 
 \item{update}{If \code{TRUE}, also install newer versions of backend packages
 that are already installed.}
@@ -52,7 +53,9 @@ as Arch, Fedora or Gentoo) on x86_64, it uses Package Manager's generic
 Some packages may still have no binary for your platform. They would have
 to be compiled, and compiling packages such as duckdb or arrow takes a long
 time and a lot of memory. By default \code{arena_install()} stops and lists
-them. With \code{build = "capped"} it compiles them, one package at a time, with
+them; in an interactive session it first asks whether to compile them, and
+whether to always do so (which saves \code{arena_config(build = "capped")}).
+With \code{build = "capped"} it compiles them, one package at a time, with
 a number of parallel compile jobs chosen from free memory and, on Linux
 with systemd, inside a memory limit with swap disabled, so a build that
 runs out of memory is stopped instead of freezing the machine.
