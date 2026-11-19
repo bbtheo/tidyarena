@@ -15,7 +15,7 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' arena_check_backend("duckplyr")
+#' arena_check_backend("dbplyr_duckdb")
 #' }
 arena_check_backend <- function(
   backend,

@@ -78,7 +78,7 @@ are set with \code{\link[=arena_config]{arena_config()}}.
 }
 \examples{
 \dontrun{
-arena_install(c("dtplyr", "duckplyr"))
+arena_install(c("dtplyr", "dbplyr_duckdb"))
 arena_install(update = TRUE)
 }
 }

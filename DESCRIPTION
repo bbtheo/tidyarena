@@ -9,7 +9,7 @@ Authors@R: c(
            comment = "TPC-H-derived queries from arrowbench, see inst/COPYRIGHTS")
   )
 Description: Runs one suite of 'dplyr' pipelines on many backends
-    ('dplyr', 'dtplyr', 'duckplyr', 'dbplyr' with 'duckdb', 'arrow',
+    ('dplyr', 'dtplyr', 'dbplyr' with 'duckdb', 'arrow',
     'tidypolars', 'cuplyr') and records time, peak memory, coverage and
     correctness, together with a snapshot of the machine and its settings.
     Each task runs in its own R process under a memory budget, so a

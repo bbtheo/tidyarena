@@ -56,7 +56,7 @@ fields:
 | `read` | none | For backends that can read Parquet files themselves: an expression that reads the table named `name` from the file at `path`, the way a user of the backend would (`arrow::open_dataset(path)`). The backend then also runs as `<id>_parquet`, which gets the files instead of data frames. The report compares it with the backend given data frames. |
 
 Backends that can spill to disk should set their memory limit from
-`.budget_mb`, as `duckplyr.R` does.
+`.budget_mb`, as `dbplyr_duckdb.R` does.
 
 Then check it:
 

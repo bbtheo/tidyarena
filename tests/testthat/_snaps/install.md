@@ -9,9 +9,9 @@
 # arena_install() refuses to compile unless asked
 
     Code
-      arena_install("duckplyr", lib = lib)
+      arena_install("dbplyr_duckdb", lib = lib)
     Message
-      Resolving duckplyr from <https://p3m.dev/cran/latest>.
+      Resolving duckdb from <https://p3m.dev/cran/latest>.
     Condition
       Error in `arena_install()`:
       ! 2 packages have no binary for this platform and would have to be compiled: duckdb and cli.
@@ -25,7 +25,7 @@
     Code
       prefer <- offer_installs(NULL, "ask", .libPaths())
     Message
-      i Not installed: "duckplyr".
+      i Not installed: "dbplyr_duckdb".
       i Newer versions available: data.table 1.18.4 -> 1.18.6.
       i Install them with `arena_install()`, or pass `install` to `arena_run()`.
 

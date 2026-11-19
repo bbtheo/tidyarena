@@ -24,7 +24,7 @@ test_that("version_satisfies() compares versions", {
 
 test_that("describe_unmet() says what is wrong", {
   unmet <- data.frame(
-    package = "duckplyr",
+    package = "dtplyr",
     needs = "dplyr",
     required = ">= 1.2.0",
     found = "1.1.4",
@@ -32,7 +32,7 @@ test_that("describe_unmet() says what is wrong", {
   )
   expect_equal(
     describe_unmet(unmet),
-    "duckplyr needs dplyr >= 1.2.0, but your library has 1.1.4."
+    "dtplyr needs dplyr >= 1.2.0, but your library has 1.1.4."
   )
 })
 
@@ -65,7 +65,7 @@ test_that("preflight() passes backends that load", {
 test_that("preflight() switches to tidyarena's packages by default when not interactive", {
   local_preflight(load_ok = FALSE)
   rlang::local_interactive(FALSE)
-  expect_snapshot(out <- preflight("duckplyr", "session", FALSE, .libPaths()))
+  expect_snapshot(out <- preflight("dbplyr_duckdb", "session", FALSE, .libPaths()))
   expect_equal(out$prefer, "arena")
   expect_length(out$skip, 0)
 })
@@ -74,33 +74,33 @@ test_that("preflight() skips when the user says no", {
   local_preflight(load_ok = FALSE)
   local_mocked_bindings(ask_yes_no = function(...) FALSE)
   rlang::local_interactive(TRUE)
-  out <- suppressMessages(preflight("duckplyr", "session", FALSE, .libPaths()))
+  out <- suppressMessages(preflight("dbplyr_duckdb", "session", FALSE, .libPaths()))
   expect_equal(out$prefer, "session")
-  expect_match(out$skip[["duckplyr"]], "needs dplyr >= 9.0")
+  expect_match(out$skip[["dbplyr_duckdb"]], "needs dplyr >= 9.0")
 })
 
 test_that("preflight() skips when switching doesn't help", {
   local_preflight(load_ok = FALSE, retry_ok = FALSE)
   rlang::local_interactive(FALSE)
-  out <- suppressMessages(preflight("duckplyr", "session", FALSE, .libPaths()))
+  out <- suppressMessages(preflight("dbplyr_duckdb", "session", FALSE, .libPaths()))
   expect_equal(out$prefer, "session")
-  expect_match(out$skip[["duckplyr"]], "still boom")
+  expect_match(out$skip[["dbplyr_duckdb"]], "still boom")
 })
 
 test_that("preflight() doesn't change a libpath the user gave", {
   local_preflight(load_ok = FALSE)
   rlang::local_interactive(FALSE)
-  out <- suppressMessages(preflight("duckplyr", "session", TRUE, .libPaths()))
+  out <- suppressMessages(preflight("dbplyr_duckdb", "session", TRUE, .libPaths()))
   expect_equal(out$prefer, "session")
-  expect_named(out$skip, "duckplyr")
+  expect_named(out$skip, "dbplyr_duckdb")
 })
 
 test_that("preflight() skips failures it can't explain without asking", {
   local_preflight(load_ok = FALSE, unmet = unmet_dplyr[0, ])
   local_mocked_bindings(ask_yes_no = function(...) stop("should not ask"))
   rlang::local_interactive(TRUE)
-  out <- suppressMessages(preflight("duckplyr", "session", FALSE, .libPaths()))
-  expect_match(out$skip[["duckplyr"]], "boom")
+  out <- suppressMessages(preflight("dbplyr_duckdb", "session", FALSE, .libPaths()))
+  expect_match(out$skip[["dbplyr_duckdb"]], "boom")
 })
 
 # A real version of the problem: tidyarena's library has a backend that

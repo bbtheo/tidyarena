@@ -34,6 +34,6 @@ new backend: it takes seconds, not the minutes of a run.
 }
 \examples{
 \dontrun{
-arena_check_backend("duckplyr")
+arena_check_backend("dbplyr_duckdb")
 }
 }

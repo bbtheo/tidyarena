@@ -19,7 +19,7 @@
     Condition
       Error in `arena_config()`:
       ! `exclude` has unknown id: "nope".
-      i Known ids: "dplyr", "arrow", "arrow_parquet", "cuplyr", "cuplyr_parquet", "dbplyr_duckdb", "dbplyr_duckdb_parquet", "dtplyr", "duckplyr", "duckplyr_parquet", "tidypolars", and "tidypolars_parquet".
+      i Known ids: "dplyr", "arrow", "arrow_parquet", "cuplyr", "cuplyr_parquet", "dbplyr_duckdb", "dbplyr_duckdb_parquet", "dtplyr", "tidypolars", and "tidypolars_parquet".
     Code
       arena_config(build = "always")
     Condition

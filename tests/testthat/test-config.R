@@ -128,11 +128,11 @@ test_that("github_has_src() looks for compiled code at the tag", {
 
 test_that("leaving out a backend leaves out its Parquet variant", {
   backends <- tibble::tibble(
-    backend = c("dplyr", "arrow", "arrow_parquet", "duckplyr", "duckplyr_parquet"),
+    backend = c("dplyr", "arrow", "arrow_parquet", "dbplyr_duckdb", "dbplyr_duckdb_parquet"),
     available = TRUE
   )
-  suppressMessages(arena_config(exclude = c("arrow", "duckplyr_parquet")))
-  expect_equal(default_backends(backends), c("dplyr", "duckplyr"))
+  suppressMessages(arena_config(exclude = c("arrow", "dbplyr_duckdb_parquet")))
+  expect_equal(default_backends(backends), c("dplyr", "dbplyr_duckdb"))
   expect_equal(base_backends(c("arrow_parquet", "arrow", "dplyr")), c("arrow", "dplyr"))
   expect_false("arrow_parquet" %in% names(install_defs()))
 })

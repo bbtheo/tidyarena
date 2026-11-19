@@ -35,7 +35,7 @@ test_that("arena_install() refuses to compile unless asked", {
     install_packages = function(...) stop("should not install")
   )
   lib <- withr::local_tempdir()
-  expect_snapshot(arena_install("duckplyr", lib = lib), error = TRUE)
+  expect_snapshot(arena_install("dbplyr_duckdb", lib = lib), error = TRUE)
 })
 
 test_that("arena_install() does nothing when everything is installed", {
@@ -69,7 +69,7 @@ old_dt <- data.frame(package = "data.table", installed = "1.18.4", available = "
 
 test_that("offer_installs() asks before installing", {
   skip_if_not_installed("pak")
-  installs <- local_status(missing = "duckplyr", outdated = old_dt)
+  installs <- local_status(missing = "dbplyr_duckdb", outdated = old_dt)
   answers <- c(TRUE, FALSE)
   local_mocked_bindings(
     ask_yes_no = function(...) {
@@ -81,30 +81,30 @@ test_that("offer_installs() asks before installing", {
   rlang::local_interactive(TRUE)
   offer_installs(NULL, "ask", .libPaths())
   expect_length(installs$calls, 1)
-  expect_equal(installs$calls[[1]]$backends, "duckplyr")
+  expect_equal(installs$calls[[1]]$backends, "dbplyr_duckdb")
   expect_false(installs$calls[[1]]$update)
 })
 
 test_that("offer_installs() installs and updates without asking when told to", {
   skip_if_not_installed("pak")
-  installs <- local_status(missing = "duckplyr", outdated = old_dt)
+  installs <- local_status(missing = "dbplyr_duckdb", outdated = old_dt)
   local_mocked_bindings(ask_yes_no = function(...) stop("should not ask"))
   offer_installs(NULL, "update", .libPaths())
-  expect_equal(installs$calls[[1]]$backends, "duckplyr")
+  expect_equal(installs$calls[[1]]$backends, "dbplyr_duckdb")
   expect_equal(installs$calls[[2]]$backends, "dtplyr")
   expect_true(installs$calls[[2]]$update)
 })
 
 test_that("offer_installs() only reports when not interactive", {
   skip_if_not_installed("pak")
-  installs <- local_status(missing = "duckplyr", outdated = old_dt)
+  installs <- local_status(missing = "dbplyr_duckdb", outdated = old_dt)
   rlang::local_interactive(FALSE)
   expect_snapshot(prefer <- offer_installs(NULL, "ask", .libPaths()))
   expect_length(installs$calls, 0)
 })
 
 test_that("offer_installs() does nothing with install = 'never'", {
-  installs <- local_status(missing = "duckplyr")
+  installs <- local_status(missing = "dbplyr_duckdb")
   expect_silent(offer_installs(NULL, "never", .libPaths()))
   expect_length(installs$calls, 0)
 })
@@ -131,7 +131,7 @@ test_that("updating puts tidyarena's library first", {
 
 test_that("offer_installs() returns the library to prefer", {
   skip_if_not_installed("pak")
-  local_status(missing = "duckplyr", outdated = old_dt)
+  local_status(missing = "dbplyr_duckdb", outdated = old_dt)
   local_mocked_bindings(ask_yes_no = function(...) TRUE)
   rlang::local_interactive(TRUE)
   expect_equal(offer_installs(NULL, "ask", .libPaths()), "arena")
@@ -189,19 +189,19 @@ test_that("arena_install() asks whether to compile, and whether to always do so"
   rlang::local_interactive(TRUE)
 
   asked <- local_answers(c(TRUE, FALSE))
-  suppressMessages(arena_install("duckplyr", lib = lib))
+  suppressMessages(arena_install("dbplyr_duckdb", lib = lib))
   expect_equal(installs$n, 1)
   expect_equal(asked$n, 2)
   expect_equal(read_config()$build, "never")
 
   asked <- local_answers(c(TRUE, TRUE))
-  suppressMessages(arena_install("duckplyr", lib = lib))
+  suppressMessages(arena_install("dbplyr_duckdb", lib = lib))
   expect_equal(installs$n, 2)
   expect_equal(read_config()$build, "capped")
 
   # Saved: no more questions.
   local_mocked_bindings(ask_yes_no = function(...) stop("should not ask"))
-  suppressMessages(arena_install("duckplyr", lib = lib))
+  suppressMessages(arena_install("dbplyr_duckdb", lib = lib))
   expect_equal(installs$n, 3)
   arena_config(reset = TRUE) |> suppressMessages()
 })
@@ -213,12 +213,12 @@ test_that("arena_install() stops when compiling is turned down or build is given
   rlang::local_interactive(TRUE)
 
   asked <- local_answers(FALSE)
-  expect_error(suppressMessages(arena_install("duckplyr", lib = lib)), class = "tidyarena_needs_build")
+  expect_error(suppressMessages(arena_install("dbplyr_duckdb", lib = lib)), class = "tidyarena_needs_build")
   expect_equal(asked$n, 1)
 
   local_mocked_bindings(ask_yes_no = function(...) stop("should not ask"))
   expect_error(
-    suppressMessages(arena_install("duckplyr", lib = lib, build = "never")),
+    suppressMessages(arena_install("dbplyr_duckdb", lib = lib, build = "never")),
     class = "tidyarena_needs_build"
   )
   expect_equal(installs$n, 0)
@@ -231,12 +231,12 @@ test_that("install_backends() asks whether to compile only once", {
   rlang::local_interactive(TRUE)
 
   asked <- local_answers(c(TRUE, FALSE))
-  suppressMessages(install_backends(c("duckplyr", "arrow")))
+  suppressMessages(install_backends(c("dbplyr_duckdb", "arrow")))
   expect_equal(asked$n, 2)
   expect_equal(installs$n, 2)
 
   asked <- local_answers(FALSE)
-  suppressMessages(install_backends(c("duckplyr", "arrow")))
+  suppressMessages(install_backends(c("dbplyr_duckdb", "arrow")))
   expect_equal(asked$n, 1)
   expect_equal(installs$n, 2)
 })

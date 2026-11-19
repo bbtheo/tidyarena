@@ -6,7 +6,15 @@
 \alias{tidyarena-package}
 \title{tidyarena: Benchmark Arena for 'dplyr' Backends}
 \description{
-Runs one suite of 'dplyr' pipelines on many backends ('dplyr', 'dtplyr', 'duckplyr', 'dbplyr' with 'duckdb', 'arrow', 'tidypolars', 'cuplyr') and records time, peak memory, coverage and correctness, together with a snapshot of the machine and its settings. Each task runs in its own R process under a memory budget, so a benchmark run cannot exhaust the machine. Results are written in a documented format meant for comparison across machines.
+Runs one suite of 'dplyr' pipelines on many backends ('dplyr', 'dtplyr', 'dbplyr' with 'duckdb', 'arrow', 'tidypolars', 'cuplyr') and records time, peak memory, coverage and correctness, together with a snapshot of the machine and its settings. Each task runs in its own R process under a memory budget, so a benchmark run cannot exhaust the machine. Results are written in a documented format meant for comparison across machines.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/bbtheo/tidyarena}
+  \item Report bugs at \url{https://github.com/bbtheo/tidyarena/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Theo Blauberg \email{ma.oon.theo@gmail.com}
