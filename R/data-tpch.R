@@ -22,6 +22,10 @@ generate_tpch <- function(n, seed, paths, options = list()) {
     },
     add = TRUE
   )
+  # Installed and loaded explicitly: duckdb 1.5 no longer installs known
+  # extensions on first use (`autoinstall_known_extensions` is off).
+  DBI::dbExecute(con, "INSTALL tpch")
+  DBI::dbExecute(con, "LOAD tpch")
   DBI::dbExecute(con, sprintf("CALL dbgen(sf = %s)", format(sf, scientific = FALSE)))
 
   fingerprint <- list()
