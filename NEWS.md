@@ -1,5 +1,9 @@
 # tidyarena (development version)
 
+* `dbplyr_duckdb_parquet` reads UTC times from Parquet as `TIMESTAMP`, the
+  type DuckDB gives them when written from R, so datetime tasks no longer
+  need DuckDB's icu extension.
+
 * `arena_install()` asks in interactive sessions whether to compile
   packages that have no binary, and whether to always do so (saving
   `arena_config(build = "capped")`). Inside `arena_run()` it asks once for

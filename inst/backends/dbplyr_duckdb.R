@@ -4,9 +4,14 @@ list(
   # Turns each table, `x`, named `name`, into the backend's form.
   convert = "{ DBI::dbWriteTable(.con, name, x); dplyr::tbl(.con, name) }",
   # Reads the Parquet file at `path` itself: a view, so every query scans
-  # the file.
+  # the file. Parquet stores R's UTC times as TIMESTAMP WITH TIME ZONE, whose
+  # functions need DuckDB's icu extension; the view casts them to TIMESTAMP,
+  # the type DuckDB gives the same columns written from R.
   read = paste(
-    "{ DBI::dbExecute(.con, sprintf(\"CREATE VIEW %s AS SELECT * FROM read_parquet('%s')\", name, path));",
+    "{ .cols <- DBI::dbGetQuery(.con, sprintf(\"DESCRIBE SELECT * FROM read_parquet('%s')\", path));",
+    ".tz <- .cols$column_name[.cols$column_type == 'TIMESTAMP WITH TIME ZONE'];",
+    ".select <- if (length(.tz) > 0) sprintf('* REPLACE (%s)', paste(sprintf('\"%s\"::TIMESTAMP AS \"%s\"', .tz, .tz), collapse = ', ')) else '*';",
+    "DBI::dbExecute(.con, sprintf(\"CREATE VIEW %s AS SELECT %s FROM read_parquet('%s')\", name, .select, path));",
     "dplyr::tbl(.con, name) }"
   ),
   setup = c(
