@@ -36,7 +36,7 @@ arena_report <- function(x) {
     parts <- unique(all_tasks$part[all_tasks$task %in% unlist(x$run$tasks)])
     whole <- sort(parts[vapply(parts, function(p) all(all_tasks$task[all_tasks$part == p] %in% unlist(x$run$tasks)), logical(1))])
     if (length(whole) > 0 && n_tasks == sum(all_tasks$part %in% whole)) {
-      cli::cli_text("Part{?s} {whole} of the suite: {n_tasks} of the {nrow(all_tasks)} tasks.")
+      cli::cli_text("{cli::qty(length(whole))}Part{?s} {whole} of the suite: {n_tasks} of the {nrow(all_tasks)} tasks.")
     } else {
       cli::cli_text("{n_tasks} of the {nrow(all_tasks)} tasks.")
     }
